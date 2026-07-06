@@ -1,0 +1,119 @@
+/* Checkbox Manager Plugin Styles */
+
+/* Settings Tab Styles */
+.checkbox-preview {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-right: 12px !important;
+  padding: 4px 8px !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: 4px !important;
+  background: var(--background-secondary) !important;
+  font-size: 12px !important;
+}
+
+.checkbox-icon-setting textarea {
+  min-height: 80px !important;
+  font-family: var(--font-monospace) !important;
+  font-size: 12px !important;
+  resize: vertical !important;
+}
+
+/* Modal styling */
+.modal .setting-item {
+  border: none;
+  padding: 8px 0;
+}
+
+.modal .setting-item-info {
+  margin-bottom: 4px;
+}
+
+.modal .setting-item-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.modal .setting-item-description {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Button container in modals */
+.modal .button-container {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Settings section headers */
+.custom-checkboxes-settings h3 {
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: var(--text-normal);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Checkbox list in settings */
+.checkbox-config-item {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--background-secondary);
+}
+
+.checkbox-config-item .setting-item {
+  border: none;
+  padding: 0;
+}
+
+.checkbox-config-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.checkbox-symbol {
+  font-family: var(--font-monospace);
+  font-size: 14px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+}
+
+.checkbox-name {
+  font-weight: 500;
+}
+
+.checkbox-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Warning styles for delete buttons */
+.setting-item button.mod-warning {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.setting-item button.mod-warning:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+/* Help text styling */
+.setting-item-description code {
+  background: var(--background-modifier-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+}

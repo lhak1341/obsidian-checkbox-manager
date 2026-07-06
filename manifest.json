@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-checkbox-manager",
+	"name": "Checkbox Manager",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Custom checkbox styles with switchable icon styles: Filled (FontAwesome) and Stroke (Lucide).",
+	"author": "Khoa Le",
+	"authorUrl": "https://github.com/lhak1341",
+	"isDesktopOnly": false
+}

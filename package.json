@@ -1,0 +1,23 @@
+{
+	"name": "obsidian-checkbox-manager",
+	"version": "1.0.0",
+	"description": "Custom checkbox styles for Obsidian with switchable icon styles.",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"build:plugin": "node esbuild.config.mjs production",
+		"deploy": "bun run build:plugin && bun run scripts/deploy.mjs"
+	},
+	"author": {
+		"name": "Khoa Le",
+		"url": "https://github.com/lhak1341"
+	},
+	"license": "MIT",
+	"devDependencies": {
+		"builtin-modules": "5.3.0",
+		"esbuild": "0.28.1",
+		"obsidian": "latest",
+		"typescript": "5.8.3"
+	}
+}
