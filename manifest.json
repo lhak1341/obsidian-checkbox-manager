@@ -6,5 +6,6 @@
 	"description": "Custom checkbox styles with switchable icon styles: Filled (FontAwesome) and Stroke (Lucide).",
 	"author": "Khoa Le",
 	"authorUrl": "https://github.com/lhak1341",
-	"isDesktopOnly": false
+	"isDesktopOnly": false,
+	"fundingUrl": "https://github.com/sponsors/lhak1341"
 }

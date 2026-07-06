@@ -193,6 +193,10 @@
 }
 
 /* ── Checkbox config modal ── */
+.checkbox-config-modal {
+  max-width: 500px;
+  width: 90vw;
+}
 .checkbox-config-icon-section {
   margin: 20px 0;
   padding: 16px;
