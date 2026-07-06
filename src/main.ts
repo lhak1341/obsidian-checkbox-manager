@@ -1,4 +1,4 @@
-import { Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { Modal, Notice, Plugin, PluginSettingTab, sanitizeHTMLToDom, Setting } from 'obsidian';
 
 interface CustomIconData {
 	viewBox: string;
@@ -114,7 +114,7 @@ export default class CheckboxManagerPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.styleEl = document.createElement('style');
+		this.styleEl = createEl('style');
 		this.styleEl.id = 'checkbox-manager-styles';
 		document.head.appendChild(this.styleEl);
 
@@ -124,18 +124,17 @@ export default class CheckboxManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'toggle-custom-checkboxes',
-			name: 'Toggle Custom Checkboxes',
+			name: 'Toggle custom checkboxes',
 			callback: () => {
 				this.settings.enabled = !this.settings.enabled;
-				this.saveSettings();
-				this.updateStyles();
+				void this.saveSettings();
 				new Notice(this.settings.enabled ? 'Custom checkboxes enabled' : 'Custom checkboxes disabled');
 			},
 		});
 
 		this.addCommand({
 			id: 'refresh-checkbox-styles',
-			name: 'Refresh Checkbox Styles',
+			name: 'Refresh checkbox styles',
 			callback: () => {
 				this.updateStyles();
 				new Notice('Checkbox styles refreshed');
@@ -144,7 +143,7 @@ export default class CheckboxManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'reset-to-defaults',
-			name: 'Reset Checkboxes to Defaults',
+			name: 'Reset checkboxes to defaults',
 			callback: async () => {
 				this.settings.checkboxes = [...DEFAULT_CHECKBOXES];
 				await this.saveSettings();
@@ -158,7 +157,7 @@ export default class CheckboxManagerPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		const loadedData = await this.loadData();
+		const loadedData = (await this.loadData()) as Partial<PluginSettings>;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
 
 		if (this.settings.checkboxes) {
@@ -312,20 +311,20 @@ ${this.isSel('/')} {
 	addCheckbox(config: CheckboxConfig) {
 		if (!this.settings.checkboxes.find((cb) => cb.symbol === config.symbol)) {
 			this.settings.checkboxes.push(config);
-			this.saveSettings();
+			void this.saveSettings();
 		}
 	}
 
 	removeCheckbox(symbol: string) {
 		this.settings.checkboxes = this.settings.checkboxes.filter((cb) => cb.symbol !== symbol);
-		this.saveSettings();
+		void this.saveSettings();
 	}
 
 	updateCheckbox(symbol: string, config: Partial<CheckboxConfig>) {
 		const index = this.settings.checkboxes.findIndex((cb) => cb.symbol === symbol);
 		if (index !== -1) {
 			this.settings.checkboxes[index] = { ...this.settings.checkboxes[index], ...config };
-			this.saveSettings();
+			void this.saveSettings();
 		}
 	}
 }
@@ -339,13 +338,17 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		this.render();
+	}
+
+	render(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Checkbox Manager Settings' });
+		;
 
 		new Setting(containerEl)
-			.setName('Enable Custom Checkboxes')
+			.setName('Enable custom checkboxes')
 			.setDesc('Toggle custom checkbox styling on/off')
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.enabled).onChange(async (value) => {
@@ -355,24 +358,24 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Icon Style')
-			.setDesc("Filled: bold FontAwesome icons. Stroke: thin Lucide icons that match Obsidian's UI.")
+			.setName('Icon style')
+			.setDesc("Filled: bold fontawesome icons. Stroke: thin lucide icons that match Obsidian's UI.")
 			.addDropdown((dropdown) => {
-				dropdown.addOption('stroke', 'Stroke (Lucide)');
-				dropdown.addOption('filled', 'Filled (FontAwesome)');
+				dropdown.addOption('stroke', 'Stroke (lucide)');
+				dropdown.addOption('filled', 'Filled (fontawesome)');
 				dropdown.setValue(this.plugin.settings.iconStyle || 'stroke');
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.iconStyle = value as 'stroke' | 'filled';
 					await this.plugin.saveSettings();
-					this.display();
+					this.render();
 					new Notice(`Icon style changed to ${value}`);
 				});
 			});
 
-		containerEl.createEl('h3', { text: 'Global Settings' });
+		;
 
 		new Setting(containerEl)
-			.setName('Icon Size')
+			.setName('Icon size')
 			.setDesc('Size of checkbox icons (CSS value, e.g., 90%, 16px, 1.2em)')
 			.addText((text) =>
 				text
@@ -385,7 +388,7 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Icon Position')
+			.setName('Icon position')
 			.setDesc('Position of checkbox icons (CSS background-position, e.g., center, 50% 50%)')
 			.addText((text) =>
 				text
@@ -397,66 +400,49 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl('h3', { text: 'Checkbox Configurations' });
+		new Setting(containerEl).setName("Checkbox configurations").setHeading();
 
 		new Setting(containerEl)
-			.setName('Add New Checkbox')
+			.setName('Add new checkbox')
 			.setDesc('Add a new custom checkbox type')
 			.addButton((button) =>
 				button
-					.setButtonText('Add Checkbox')
+					.setButtonText('Add checkbox')
 					.setCta()
 					.onClick(() => this.showAddCheckboxModal())
 			);
 
 		this.plugin.settings.checkboxes.forEach((checkbox, index) => {
-			const item = containerEl.createDiv('checkbox-item');
+			const item = containerEl.createDiv('checkbox-manager-item');
 			item.draggable = true;
 			item.dataset.index = index.toString();
-			item.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: grab;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 4px;
-        margin-bottom: 4px;
-        padding: 8px 12px;
-        transition: all 0.2s ease;
-        min-height: 40px;
-      `;
 
 			item.addEventListener('dragstart', (e) => {
-				item.style.opacity = '0.5';
-				item.style.cursor = 'grabbing';
+				item.addClass('is-dragging');
 				e.dataTransfer!.effectAllowed = 'move';
 				e.dataTransfer!.setData('text/plain', index.toString());
 			});
 
 			item.addEventListener('dragend', () => {
-				item.style.opacity = '1';
-				item.style.cursor = 'grab';
-				containerEl.querySelectorAll('.checkbox-item').forEach((el) => {
-					(el as HTMLElement).style.borderColor = 'var(--background-modifier-border)';
-					(el as HTMLElement).style.background = '';
+				item.removeClass('is-dragging');
+				containerEl.querySelectorAll<HTMLElement>('.checkbox-manager-item').forEach((el) => {
+					el.removeClass('is-drag-over');
 				});
 			});
 
 			item.addEventListener('dragover', (e) => {
 				e.preventDefault();
 				e.dataTransfer!.dropEffect = 'move';
-				item.style.borderColor = 'var(--interactive-accent)';
-				item.style.background = 'var(--background-secondary)';
+				item.addClass('is-drag-over');
 			});
 
 			item.addEventListener('dragleave', (e) => {
 				if (!item.contains(e.relatedTarget as Node)) {
-					item.style.borderColor = 'var(--background-modifier-border)';
-					item.style.background = '';
+					item.removeClass('is-drag-over');
 				}
 			});
 
-			item.addEventListener('drop', async (e) => {
+			item.addEventListener('drop', (e) => {
 				e.preventDefault();
 				const from = parseInt(e.dataTransfer!.getData('text/plain'));
 				const to = parseInt(item.dataset.index!);
@@ -465,89 +451,73 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 					const [moved] = list.splice(from, 1);
 					list.splice(to, 0, moved);
 					this.plugin.settings.checkboxes = list;
-					await this.plugin.saveSettings();
-					this.display();
-					new Notice(`Moved "${moved.name}" to position ${to + 1}`);
+					void this.plugin.saveSettings().then(() => {
+						this.render();
+						new Notice(`Moved "${moved.name}" to position ${to + 1}`);
+					});
 				}
-				item.style.borderColor = 'var(--background-modifier-border)';
-				item.style.background = '';
+				item.removeClass('is-drag-over');
 			});
 
-			const preview = item.createDiv();
-			preview.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 8px;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 4px;
-        background: var(--background-secondary);
-        min-width: 140px;
-        flex: 1;
-      `;
+			const preview = item.createDiv('checkbox-manager-preview');
 
-			const symbolEl = preview.createSpan();
+			const symbolEl = preview.createSpan('checkbox-manager-symbol');
 			symbolEl.textContent = `[${checkbox.symbol}]`;
-			symbolEl.style.cssText = `font-family: var(--font-monospace); font-size: 13px; color: ${checkbox.color}; font-weight: bold; flex-shrink: 0;`;
+			symbolEl.setCssProps({ '--checkbox-color': checkbox.color });
 
-			const iconEl = preview.createSpan();
-			iconEl.style.cssText = 'flex-shrink: 0;';
+			const iconEl = preview.createSpan('checkbox-manager-icon');
 			const previewStyle = this.plugin.settings.iconStyle || 'stroke';
 			if (previewStyle === 'filled' && checkbox.icon) {
-				iconEl.innerHTML = `<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`;
+				iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`));
 			} else if (checkbox.customIconData) {
 				const svgEls = checkbox.customIconData.elements
 					? checkbox.customIconData.elements.join('')
 					: (checkbox.customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');
 				if (svgEls) {
-					iconEl.innerHTML = `<svg width="16" height="16" viewBox="${checkbox.customIconData.viewBox}" fill="none" stroke="${checkbox.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`;
+					iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.customIconData.viewBox}" fill="none" stroke="${checkbox.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`));
 				}
 			} else if (checkbox.icon) {
-				iconEl.innerHTML = `<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`;
+				iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`));
 			}
 
-			const nameEl = preview.createSpan();
+			const nameEl = preview.createSpan('checkbox-manager-label');
 			nameEl.textContent = checkbox.name;
-			nameEl.style.cssText = `font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;`;
 
-			const buttons = item.createDiv();
-			buttons.style.cssText = 'display: flex; gap: 8px; flex-shrink: 0;';
+			const buttons = item.createDiv('checkbox-manager-actions');
 
-			const editBtn = buttons.createEl('button', { text: 'Edit' });
-			editBtn.style.cssText = `padding: 4px 12px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-normal); border-radius: 4px; cursor: pointer; font-size: 12px;`;
+			const editBtn = buttons.createEl('button', { text: 'Edit', cls: 'checkbox-manager-edit-btn' });
 			editBtn.onclick = () => this.showEditCheckboxModal(checkbox, index);
 
-			const delBtn = buttons.createEl('button', { text: 'Delete' });
-			delBtn.style.cssText = `padding: 4px 12px; border: 1px solid var(--color-red); background: var(--color-red); color: white; border-radius: 4px; cursor: pointer; font-size: 12px;`;
+			const delBtn = buttons.createEl('button', { text: 'Delete', cls: 'checkbox-manager-delete-btn' });
 			delBtn.onclick = async () => {
 				if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
 					this.plugin.settings.checkboxes.splice(index, 1);
 					await this.plugin.saveSettings();
-					this.display();
+					this.render();
 					new Notice(`Deleted checkbox: ${checkbox.name}`);
 				}
 			};
 		});
 
 		new Setting(containerEl)
-			.setName('Reset to Defaults')
+			.setName('Reset to defaults')
 			.setDesc('Reset all checkbox configurations to default values')
 			.addButton((button) =>
 				button
 					.setButtonText('Reset')
-					.setWarning()
+					.setDestructive()
 					.onClick(async () => {
 						this.plugin.settings.checkboxes = [...DEFAULT_CHECKBOXES];
 						await this.plugin.saveSettings();
-						this.display();
+						this.render();
 						new Notice('Checkbox configurations reset to defaults');
 					})
 			);
 
-		containerEl.createEl('h3', { text: 'Backup & Restore' });
+		new Setting(containerEl).setName("Backup & restore").setHeading();
 
 		new Setting(containerEl)
-			.setName('Export Configuration')
+			.setName('Export configuration')
 			.setDesc('Download your current checkbox configuration as a backup file')
 			.addButton((button) =>
 				button
@@ -557,7 +527,7 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Import Configuration')
+			.setName('Import configuration')
 			.setDesc('Restore checkbox configuration from a backup file')
 			.addButton((button) =>
 				button.setButtonText('Import').onClick(() => this.importConfiguration())
@@ -572,7 +542,7 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 			settings: this.plugin.settings,
 		};
 		const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-		const link = document.createElement('a');
+		const link = createEl('a');
 		link.href = URL.createObjectURL(blob);
 		link.download = `checkbox-manager-${new Date().toISOString().split('T')[0]}.json`;
 		link.click();
@@ -580,14 +550,14 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 	}
 
 	private importConfiguration() {
-		const input = document.createElement('input');
+		const input = createEl('input');
 		input.type = 'file';
 		input.accept = '.json';
 		input.onchange = async (e) => {
 			const file = (e.target as HTMLInputElement).files?.[0];
 			if (!file) return;
 			try {
-				const imported = JSON.parse(await file.text());
+				const imported = JSON.parse(await file.text()) as { settings?: { checkboxes?: CheckboxConfig[] }; timestamp?: string };
 				if (!imported.settings?.checkboxes) {
 					new Notice('Invalid configuration file format');
 					return;
@@ -595,7 +565,7 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 				if (confirm(`Import ${imported.settings.checkboxes.length} checkbox configurations?\n\nThis will replace your current settings.\nExported on: ${imported.timestamp || 'Unknown date'}`)) {
 					this.plugin.settings = { ...this.plugin.settings, ...imported.settings };
 					await this.plugin.saveSettings();
-					this.display();
+					this.render();
 					new Notice(`Successfully imported ${imported.settings.checkboxes.length} checkbox configurations!`);
 				}
 			} catch (error) {
@@ -609,7 +579,7 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 		new CheckboxConfigModal(this.app, this.plugin, null, (result) => {
 			if (result) {
 				this.plugin.addCheckbox(result);
-				this.display();
+				this.render();
 				new Notice(`Added checkbox: [${result.symbol}] ${result.name}`);
 			}
 		}).open();
@@ -619,9 +589,10 @@ class CheckboxManagerSettingTab extends PluginSettingTab {
 		new CheckboxConfigModal(this.app, this.plugin, checkbox, (result) => {
 			if (result) {
 				this.plugin.settings.checkboxes[index] = result;
-				this.plugin.saveSettings();
-				this.display();
-				new Notice(`Updated checkbox: [${result.symbol}] ${result.name}`);
+				void this.plugin.saveSettings().then(() => {
+					this.render();
+					new Notice(`Updated checkbox: [${result.symbol}] ${result.name}`);
+				});
 			}
 		}).open();
 	}
@@ -648,11 +619,10 @@ class CheckboxConfigModal extends Modal {
 		const { contentEl } = this;
 		const isFilled = (this.plugin.settings.iconStyle || 'stroke') === 'filled';
 
-		this.modalEl.style.maxWidth = '500px';
-		this.modalEl.style.width = '90vw';
+		this.modalEl.setCssStyles({ maxWidth: '500px', width: '90vw' });
 
 		contentEl.createEl('h2', {
-			text: this.config ? 'Edit Checkbox' : 'Add New Checkbox',
+			text: this.config ? 'Edit checkbox' : 'Add new checkbox',
 			attr: { style: 'margin-bottom: 24px; text-align: center;' },
 		});
 
@@ -667,7 +637,7 @@ class CheckboxConfigModal extends Modal {
 
 		new Setting(form)
 			.setName('Symbol')
-			.setDesc('Single character used in [x]')
+			.setDesc('Single character used in [X]')
 			.addText((text) =>
 				text.setPlaceholder('!').setValue(symbol).onChange((v) => {
 					symbol = v;
@@ -707,30 +677,28 @@ class CheckboxConfigModal extends Modal {
 				});
 			});
 
-		const iconSection = form.createDiv();
-		iconSection.style.cssText = 'margin: 20px 0; padding: 16px; background: var(--background-secondary); border-radius: 8px;';
+		const iconSection = form.createDiv('checkbox-config-icon-section');
 
 		if (isFilled) {
-			iconSection.createEl('h3', { text: 'Icon (FontAwesome/Filled)', attr: { style: 'margin: 0 0 8px 0; font-size: 16px;' } });
-			const helper = iconSection.createEl('div', { attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' } });
-			helper.innerHTML = `Go to <a href="https://fontawesome.com/icons" target="_blank" style="color: var(--link-color);">fontawesome.com</a>, find an icon, click <strong>SVG</strong> → copy and paste the full SVG below`;
+			iconSection.createEl('h3', { text: 'Icon (fontawesome/filled)', attr: { style: 'margin: 0 0 8px 0; font-size: 16px;' } });
+			const helper = iconSection.createDiv('checkbox-config-helper');
+			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://fontawesome.com/icons" target="_blank">fontawesome.com</a>, find an icon, click <strong>SVG</strong> → copy and paste the full SVG below`));
 
-			const svgAreaFilled = iconSection.createEl('textarea');
-			svgAreaFilled.style.cssText = 'width: 100%; height: 120px; font-family: var(--font-monospace); font-size: 11px; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); resize: vertical; box-sizing: border-box;';
+			const svgAreaFilled = iconSection.createEl('textarea', { cls: 'checkbox-config-svg-input' });
 			svgAreaFilled.placeholder = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">\n  <path d="M256 32c14.2 0..."/>\n</svg>';
 
 			if (icon) {
 				svgAreaFilled.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">\n  <path d="${icon}"/>\n</svg>`;
 			}
 
-			const extractedInfo = iconSection.createEl('div', { attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px; font-family: var(--font-monospace);' } });
+			const extractedInfo = iconSection.createDiv('checkbox-config-extracted-info');
 
 			svgAreaFilled.oninput = () => {
 				const val = svgAreaFilled.value.trim();
 				if (!val) {
 					icon = '';
 					extractedInfo.textContent = '';
-					svgAreaFilled.style.borderColor = 'var(--background-modifier-border)';
+					svgAreaFilled.removeClass('is-valid', 'is-invalid');
 					updatePreview();
 					return;
 				}
@@ -744,22 +712,23 @@ class CheckboxConfigModal extends Modal {
 					icon = paths.map((p) => p.getAttribute('d')).filter(Boolean).join(' ');
 					viewBox = svg.getAttribute('viewBox') || '0 0 512 512';
 					extractedInfo.textContent = `viewBox: ${viewBox} · ${paths.length} path${paths.length > 1 ? 's' : ''} extracted`;
-					svgAreaFilled.style.borderColor = 'var(--color-green)';
+					svgAreaFilled.removeClass('is-invalid');
+					svgAreaFilled.addClass('is-valid');
 					updatePreview();
 				} catch {
 					icon = '';
 					extractedInfo.textContent = 'Could not parse SVG';
-					svgAreaFilled.style.borderColor = 'var(--color-red)';
+					svgAreaFilled.removeClass('is-valid');
+					svgAreaFilled.addClass('is-invalid');
 					updatePreview();
 				}
 			};
 		} else {
-			iconSection.createEl('h3', { text: 'Icon (Lucide/Stroke)', attr: { style: 'margin: 0 0 8px 0; font-size: 16px;' } });
-			const helper = iconSection.createEl('div', { attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' } });
-			helper.innerHTML = `Go to <a href="https://lucide.dev/icons" target="_blank" style="color: var(--link-color);">lucide.dev</a>, search for an icon, copy the SVG, and paste it below`;
+			iconSection.createEl('h3', { text: 'Icon (lucide/stroke)', attr: { style: 'margin: 0 0 8px 0; font-size: 16px;' } });
+			const helper = iconSection.createDiv('checkbox-config-helper');
+			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://lucide.dev/icons" target="_blank">lucide.dev</a>, search for an icon, copy the SVG, and paste it below`));
 
-			const svgArea = iconSection.createEl('textarea');
-			svgArea.style.cssText = 'width: 100%; height: 120px; font-family: var(--font-monospace); font-size: 11px; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); resize: vertical; box-sizing: border-box;';
+			const svgArea = iconSection.createEl('textarea', { cls: 'checkbox-config-svg-input' });
 			svgArea.placeholder = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ...>\n  <path d="..."/>\n</svg>';
 
 			if (customIconData?.paths) {
@@ -773,7 +742,7 @@ class CheckboxConfigModal extends Modal {
 				const val = svgArea.value.trim();
 				if (!val) {
 					customIconData = null;
-					svgArea.style.borderColor = 'var(--background-modifier-border)';
+					svgArea.removeClass('is-valid', 'is-invalid');
 					updatePreview();
 					return;
 				}
@@ -786,18 +755,19 @@ class CheckboxConfigModal extends Modal {
 					const els = Array.from(svg.querySelectorAll('path, circle, rect, line, polyline, polygon, ellipse'));
 					if (!els.length) throw new Error('No drawable elements');
 					customIconData = { viewBox: vb, elements: els.map((el) => el.outerHTML) };
-					svgArea.style.borderColor = 'var(--color-green)';
+					svgArea.removeClass('is-invalid');
+					svgArea.addClass('is-valid');
 					updatePreview();
 				} catch {
 					customIconData = null;
-					svgArea.style.borderColor = 'var(--color-red)';
+					svgArea.removeClass('is-valid');
+					svgArea.addClass('is-invalid');
 					updatePreview();
 				}
 			};
 		}
 
-		const previewSection = form.createDiv();
-		previewSection.style.cssText = 'margin: 20px 0; padding: 16px; background: var(--background-secondary); border-radius: 8px; border: 2px solid var(--background-modifier-border);';
+		const previewSection = form.createDiv('checkbox-config-preview-section');
 		previewSection.createEl('h3', { text: 'Preview', attr: { style: 'margin: 0 0 12px 0; font-size: 16px;' } });
 		const previewContent = previewSection.createDiv();
 
@@ -805,51 +775,45 @@ class CheckboxConfigModal extends Modal {
 
 		const updatePreview = () => {
 			const hasIcon = isFilled ? !!icon : !!(customIconData?.paths || customIconData?.elements);
+			previewContent.empty();
 			if (symbol && name && hasIcon) {
-				let iconHtml = '';
+				const previewRow = previewContent.createDiv('checkbox-config-preview-content');
+				const symEl = previewRow.createSpan('checkbox-config-preview-symbol');
+				symEl.textContent = `[${symbol}]`;
 				if (isFilled && icon) {
-					iconHtml = `<svg width="20" height="20" viewBox="${viewBox}" fill="${color}"><path d="${icon}"/></svg>`;
+					previewRow.appendChild(sanitizeHTMLToDom(`<svg width="20" height="20" viewBox="${viewBox}" fill="${color}"><path d="${icon}"/></svg>`));
 				} else if (customIconData) {
 					const svgEls = customIconData.elements
 						? customIconData.elements.join('')
 						: (customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');
-					iconHtml = `<svg width="20" height="20" viewBox="${customIconData.viewBox}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`;
+					previewRow.appendChild(sanitizeHTMLToDom(`<svg width="20" height="20" viewBox="${customIconData.viewBox}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`));
 				}
-				previewContent.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--background-primary); border-radius: 6px;">
-            <span style="font-family: var(--font-monospace); font-size: 14px; background: var(--background-modifier-hover); padding: 4px 8px; border-radius: 4px; font-weight: bold;">[${symbol}]</span>
-            ${iconHtml}
-            <div style="font-weight: 500;">${name}</div>
-          </div>`;
-				previewSection.style.borderColor = 'var(--color-green)';
+				const nameDiv = previewRow.createDiv('checkbox-config-preview-name');
+				nameDiv.textContent = name;
+				previewSection.addClass('is-valid');
 				saveButton.disabled = false;
-				saveButton.style.opacity = '1';
 			} else {
-				const missing = [];
+				const missing: string[] = [];
 				if (!symbol) missing.push('symbol');
 				if (!name) missing.push('name');
 				if (!hasIcon) missing.push('icon');
-				previewContent.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding: 16px; font-style: italic;">${missing.length ? `Missing: ${missing.join(', ')}` : 'Fill in the fields above'}</div>`;
-				previewSection.style.borderColor = 'var(--background-modifier-border)';
+				const placeholder = previewContent.createDiv('checkbox-config-preview-placeholder');
+				placeholder.textContent = missing.length ? `Missing: ${missing.join(', ')}` : 'Fill in the fields above';
+				previewSection.removeClass('is-valid');
 				saveButton.disabled = true;
-				saveButton.style.opacity = '0.5';
 			}
 		};
 
-		const buttonContainer = form.createDiv();
-		buttonContainer.style.cssText = 'display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--background-modifier-border);';
+		const buttonContainer = form.createDiv('checkbox-config-buttons');
 
-		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
-		cancelButton.style.cssText = 'padding: 10px 20px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-normal); border-radius: 6px; cursor: pointer;';
+		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel', cls: 'checkbox-config-cancel-btn' });
 		cancelButton.onclick = () => { this.onSubmit(null); this.close(); };
 
-		saveButton = buttonContainer.createEl('button', { text: 'Save' });
-		saveButton.style.cssText = 'padding: 10px 24px; background: var(--interactive-accent); color: var(--text-on-accent); border: none; border-radius: 6px; cursor: pointer; font-weight: 500;';
+		saveButton = buttonContainer.createEl('button', { text: 'Save', cls: 'checkbox-config-save-btn' });
 		saveButton.disabled = true;
-		saveButton.style.opacity = '0.5';
 		saveButton.onclick = () => {
 			if (!symbol || !name) {
-				new Notice('Symbol and Name are required');
+				new Notice('Symbol and name are required');
 				return;
 			}
 			const result: CheckboxConfig = {

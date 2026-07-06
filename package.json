@@ -7,7 +7,8 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"build:plugin": "node esbuild.config.mjs production",
-		"deploy": "bun run build:plugin && bun run scripts/deploy.mjs"
+		"deploy": "bun run build:plugin && bun run scripts/deploy.mjs",
+		"lint": "eslint src"
 	},
 	"author": {
 		"name": "Khoa Le",
@@ -15,8 +16,11 @@
 	},
 	"license": "MIT",
 	"devDependencies": {
+		"@typescript-eslint/parser": "^8.62.1",
 		"builtin-modules": "5.3.0",
 		"esbuild": "0.28.1",
+		"eslint": "^10.6.0",
+		"eslint-plugin-obsidianmd": "^0.4.1",
 		"obsidian": "latest",
 		"typescript": "5.8.3"
 	}
