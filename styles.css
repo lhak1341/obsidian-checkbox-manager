@@ -123,6 +123,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   cursor: grab;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
@@ -159,6 +160,12 @@
 }
 .checkbox-manager-icon {
   flex-shrink: 0;
+  display: flex;
+}
+.checkbox-manager-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 .checkbox-manager-label {
   font-size: 13px;
@@ -170,26 +177,11 @@
 }
 .checkbox-manager-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   flex-shrink: 0;
 }
-.checkbox-manager-edit-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-  color: var(--text-normal);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.checkbox-manager-delete-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--color-red);
-  background: var(--color-red);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
+.checkbox-manager-actions .clickable-icon[aria-label="Delete"]:hover {
+  color: var(--color-red);
 }
 
 /* ── Checkbox config modal ── */
@@ -250,6 +242,12 @@
   background: var(--background-primary);
   border-radius: 6px;
 }
+.checkbox-config-preview-content svg {
+  display: block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
 .checkbox-config-preview-symbol {
   font-family: var(--font-monospace);
   font-size: 14px;
@@ -294,4 +292,28 @@
 }
 .checkbox-config-save-btn:disabled {
   opacity: 0.5;
+}
+
+/* ── Insert checkbox suggester ── */
+.insert-checkbox-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.insert-checkbox-symbol {
+  font-family: var(--font-monospace);
+  font-weight: bold;
+  color: var(--checkbox-color, currentColor);
+}
+.insert-checkbox-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+.insert-checkbox-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.insert-checkbox-name {
+  color: var(--text-normal);
 }

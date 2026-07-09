@@ -1,8 +1,10 @@
-import { App, Notice, PluginSettingTab, Setting, sanitizeHTMLToDom } from 'obsidian';
+import { App, ExtraButtonComponent, Notice, PluginSettingTab, Setting, sanitizeHTMLToDom } from 'obsidian';
 import type { CheckboxConfig } from './types';
 import type CheckboxManagerPlugin from './main';
 import { CheckboxConfigModal } from './modal';
 import { DEFAULT_CHECKBOXES } from './defaults';
+import { renderIcon } from './icon';
+import { deserializeConfig, serializeConfig, suggestFilename } from './config-backup';
 
 export class CheckboxManagerSettingTab extends PluginSettingTab {
 	plugin: CheckboxManagerPlugin;
@@ -20,7 +22,9 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl)
+		const generalItems = containerEl.createDiv('setting-group').createDiv('setting-items');
+
+		new Setting(generalItems)
 			.setName('Enable custom checkboxes')
 			.setDesc('Toggle custom checkbox styling on/off')
 			.addToggle((toggle) =>
@@ -30,7 +34,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(containerEl)
+		new Setting(generalItems)
 			.setName('Icon style')
 			.setDesc("Filled: bold fontawesome icons. Stroke: thin lucide icons that match Obsidian's UI.")
 			.addDropdown((dropdown) => {
@@ -45,7 +49,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		new Setting(generalItems)
 			.setName('Icon size')
 			.setDesc('Size of checkbox icons (CSS value, e.g., 90%, 16px, 1.2em)')
 			.addText((text) =>
@@ -58,7 +62,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
+		new Setting(generalItems)
 			.setName('Icon position')
 			.setDesc('Position of checkbox icons (CSS background-position, e.g., center, 50% 50%)')
 			.addText((text) =>
@@ -72,8 +76,9 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl).setName('Checkbox configurations').setHeading();
+		const checkboxItems = containerEl.createDiv('setting-group').createDiv('setting-items');
 
-		new Setting(containerEl)
+		new Setting(checkboxItems)
 			.setName('Add new checkbox')
 			.setDesc('Add a new custom checkbox type')
 			.addButton((button) =>
@@ -84,7 +89,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		this.plugin.settings.checkboxes.forEach((checkbox, index) => {
-			const item = containerEl.createDiv('checkbox-manager-item');
+			const item = checkboxItems.createDiv('checkbox-manager-item');
 			item.draggable = true;
 			item.dataset.index = index.toString();
 
@@ -138,40 +143,35 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			symbolEl.setCssProps({ '--checkbox-color': checkbox.color });
 
 			const iconEl = preview.createSpan('checkbox-manager-icon');
-			const previewStyle = this.plugin.settings.iconStyle || 'stroke';
-			if (previewStyle === 'filled' && checkbox.icon) {
-				iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`));
-			} else if (checkbox.customIconData) {
-				const svgEls = checkbox.customIconData.elements
-					? checkbox.customIconData.elements.join('')
-					: (checkbox.customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');
-				if (svgEls) {
-					iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.customIconData.viewBox}" fill="none" stroke="${checkbox.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`));
-				}
-			} else if (checkbox.icon) {
-				iconEl.appendChild(sanitizeHTMLToDom(`<svg width="16" height="16" viewBox="${checkbox.viewBox || '0 0 512 512'}" fill="${checkbox.color}"><path d="${checkbox.icon}"/></svg>`));
-			}
+			const iconMarkup = renderIcon(checkbox, this.plugin.settings.iconStyle || 'stroke');
+			if (iconMarkup) iconEl.appendChild(sanitizeHTMLToDom(iconMarkup));
 
 			const nameEl = preview.createSpan('checkbox-manager-label');
 			nameEl.textContent = checkbox.name;
 
 			const buttons = item.createDiv('checkbox-manager-actions');
 
-			const editBtn = buttons.createEl('button', { text: 'Edit', cls: 'checkbox-manager-edit-btn' });
-			editBtn.onclick = () => this.showEditCheckboxModal(checkbox, index);
+			new ExtraButtonComponent(buttons)
+				.setIcon('pencil')
+				.setTooltip('Edit')
+				.onClick(() => this.showEditCheckboxModal(checkbox, index));
 
-			const delBtn = buttons.createEl('button', { text: 'Delete', cls: 'checkbox-manager-delete-btn' });
-			delBtn.onclick = async () => {
-				if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
-					this.plugin.settings.checkboxes.splice(index, 1);
-					await this.plugin.saveSettings();
-					this.render();
-					new Notice(`Deleted checkbox: ${checkbox.name}`);
-				}
-			};
+			new ExtraButtonComponent(buttons)
+				.setIcon('trash-2')
+				.setTooltip('Delete')
+				.onClick(() => {
+					if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
+						void (async () => {
+							this.plugin.settings.checkboxes.splice(index, 1);
+							await this.plugin.saveSettings();
+							this.render();
+							new Notice(`Deleted checkbox: ${checkbox.name}`);
+						})();
+					}
+				});
 		});
 
-		new Setting(containerEl)
+		new Setting(checkboxItems)
 			.setName('Reset to defaults')
 			.setDesc('Reset all checkbox configurations to default values')
 			.addButton((button) =>
@@ -187,8 +187,9 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl).setName('Backup & restore').setHeading();
+		const backupItems = containerEl.createDiv('setting-group').createDiv('setting-items');
 
-		new Setting(containerEl)
+		new Setting(backupItems)
 			.setName('Export configuration')
 			.setDesc('Download your current checkbox configuration as a backup file')
 			.addButton((button) =>
@@ -198,7 +199,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 					.onClick(() => this.exportConfiguration())
 			);
 
-		new Setting(containerEl)
+		new Setting(backupItems)
 			.setName('Import configuration')
 			.setDesc('Restore checkbox configuration from a backup file')
 			.addButton((button) =>
@@ -207,16 +208,11 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 	}
 
 	private exportConfiguration() {
-		const config = {
-			version: '2.0',
-			plugin: 'obsidian-checkbox-manager',
-			timestamp: new Date().toISOString(),
-			settings: this.plugin.settings,
-		};
-		const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+		const now = new Date();
+		const blob = new Blob([serializeConfig(this.plugin.settings, now)], { type: 'application/json' });
 		const link = createEl('a');
 		link.href = URL.createObjectURL(blob);
-		link.download = `checkbox-manager-${new Date().toISOString().split('T')[0]}.json`;
+		link.download = suggestFilename(now);
 		link.click();
 		new Notice('Configuration exported successfully!');
 	}
@@ -228,20 +224,16 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 		input.onchange = async (e) => {
 			const file = (e.target as HTMLInputElement).files?.[0];
 			if (!file) return;
-			try {
-				const imported = JSON.parse(await file.text()) as { settings?: { checkboxes?: CheckboxConfig[] }; timestamp?: string };
-				if (!imported.settings?.checkboxes) {
-					new Notice('Invalid configuration file format');
-					return;
-				}
-				if (confirm(`Import ${imported.settings.checkboxes.length} checkbox configurations?\n\nThis will replace your current settings.\nExported on: ${imported.timestamp || 'Unknown date'}`)) {
-					this.plugin.settings = { ...this.plugin.settings, ...imported.settings };
-					await this.plugin.saveSettings();
-					this.render();
-					new Notice(`Successfully imported ${imported.settings.checkboxes.length} checkbox configurations!`);
-				}
-			} catch (error) {
-				new Notice('Error reading configuration file: ' + (error as Error).message);
+			const result = deserializeConfig(await file.text(), this.plugin.settings);
+			if (!result.ok) {
+				new Notice(result.reason);
+				return;
+			}
+			if (confirm(`Import ${result.checkboxCount} checkbox configurations?\n\nThis will replace your current settings.\nExported on: ${result.timestamp || 'Unknown date'}`)) {
+				this.plugin.settings = result.settings;
+				await this.plugin.saveSettings();
+				this.render();
+				new Notice(`Successfully imported ${result.checkboxCount} checkbox configurations!`);
 			}
 		};
 		input.click();

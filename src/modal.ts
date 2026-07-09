@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting, sanitizeHTMLToDom } from 'obsidian';
 import type { CheckboxConfig, CustomIconData } from './types';
 import type CheckboxManagerPlugin from './main';
+import { parseIconMarkup, renderIcon } from './icon';
 
 export class CheckboxConfigModal extends Modal {
 	private plugin: CheckboxManagerPlugin;
@@ -81,6 +82,7 @@ export class CheckboxConfigModal extends Modal {
 			});
 
 		const iconSection = form.createDiv('checkbox-config-icon-section');
+		let extractedInfo: HTMLDivElement;
 
 		if (isFilled) {
 			new Setting(iconSection).setName('Icon (fontawesome/filled)').setHeading();
@@ -94,7 +96,7 @@ export class CheckboxConfigModal extends Modal {
 				svgAreaFilled.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">\n  <path d="${icon}"/>\n</svg>`;
 			}
 
-			const extractedInfo = iconSection.createDiv('checkbox-config-extracted-info');
+			extractedInfo = iconSection.createDiv('checkbox-config-extracted-info');
 
 			svgAreaFilled.oninput = () => {
 				const val = svgAreaFilled.value.trim();
@@ -105,26 +107,20 @@ export class CheckboxConfigModal extends Modal {
 					updatePreview();
 					return;
 				}
-				try {
-					if (!val.startsWith('<svg')) throw new Error('Not an SVG');
-					const doc = new DOMParser().parseFromString(val, 'image/svg+xml');
-					const svg = doc.querySelector('svg');
-					if (!svg) throw new Error('No SVG element');
-					const paths = Array.from(svg.querySelectorAll('path'));
-					if (!paths.length) throw new Error('No path elements');
-					icon = paths.map((p) => p.getAttribute('d')).filter(Boolean).join(' ');
-					viewBox = svg.getAttribute('viewBox') || '0 0 512 512';
-					extractedInfo.textContent = `viewBox: ${viewBox} · ${paths.length} path${paths.length > 1 ? 's' : ''} extracted`;
+				const result = parseIconMarkup(val, 'filled');
+				if (result.ok) {
+					icon = result.icon ?? '';
+					viewBox = result.viewBox;
+					extractedInfo.textContent = `viewBox: ${result.viewBox}`;
 					svgAreaFilled.removeClass('is-invalid');
 					svgAreaFilled.addClass('is-valid');
-					updatePreview();
-				} catch {
+				} else {
 					icon = '';
-					extractedInfo.textContent = 'Could not parse SVG';
+					extractedInfo.textContent = result.reason;
 					svgAreaFilled.removeClass('is-valid');
 					svgAreaFilled.addClass('is-invalid');
-					updatePreview();
 				}
+				updatePreview();
 			};
 		} else {
 			new Setting(iconSection).setName('Icon (lucide/stroke)').setHeading();
@@ -141,32 +137,30 @@ export class CheckboxConfigModal extends Modal {
 				svgArea.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${customIconData.viewBox}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  ${customIconData.elements.join('\n  ')}\n</svg>`;
 			}
 
+			extractedInfo = iconSection.createDiv('checkbox-config-extracted-info');
+
 			svgArea.oninput = () => {
 				const val = svgArea.value.trim();
 				if (!val) {
 					customIconData = null;
+					extractedInfo.textContent = '';
 					svgArea.removeClass('is-valid', 'is-invalid');
 					updatePreview();
 					return;
 				}
-				try {
-					if (!val.startsWith('<svg')) throw new Error('Not an SVG');
-					const doc = new DOMParser().parseFromString(val, 'image/svg+xml');
-					const svg = doc.querySelector('svg');
-					if (!svg) throw new Error('No SVG element');
-					const vb = svg.getAttribute('viewBox') || '0 0 24 24';
-					const els = Array.from(svg.querySelectorAll('path, circle, rect, line, polyline, polygon, ellipse'));
-					if (!els.length) throw new Error('No drawable elements');
-					customIconData = { viewBox: vb, elements: els.map((el) => el.outerHTML) };
+				const result = parseIconMarkup(val, 'stroke');
+				if (result.ok) {
+					customIconData = result.customIconData ?? null;
+					extractedInfo.textContent = `viewBox: ${result.viewBox}`;
 					svgArea.removeClass('is-invalid');
 					svgArea.addClass('is-valid');
-					updatePreview();
-				} catch {
+				} else {
 					customIconData = null;
+					extractedInfo.textContent = result.reason;
 					svgArea.removeClass('is-valid');
 					svgArea.addClass('is-invalid');
-					updatePreview();
 				}
+				updatePreview();
 			};
 		}
 
@@ -183,14 +177,8 @@ export class CheckboxConfigModal extends Modal {
 				const previewRow = previewContent.createDiv('checkbox-config-preview-content');
 				const symEl = previewRow.createSpan('checkbox-config-preview-symbol');
 				symEl.textContent = `[${symbol}]`;
-				if (isFilled && icon) {
-					previewRow.appendChild(sanitizeHTMLToDom(`<svg width="20" height="20" viewBox="${viewBox}" fill="${color}"><path d="${icon}"/></svg>`));
-				} else if (customIconData) {
-					const svgEls = customIconData.elements
-						? customIconData.elements.join('')
-						: (customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');
-					previewRow.appendChild(sanitizeHTMLToDom(`<svg width="20" height="20" viewBox="${customIconData.viewBox}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgEls}</svg>`));
-				}
+				const previewMarkup = renderIcon({ icon, viewBox, customIconData, color }, isFilled ? 'filled' : 'stroke');
+				if (previewMarkup) previewRow.appendChild(sanitizeHTMLToDom(previewMarkup));
 				const nameDiv = previewRow.createDiv('checkbox-config-preview-name');
 				nameDiv.textContent = name;
 				previewSection.addClass('is-valid');

@@ -1,0 +1,3 @@
+# Domain glossary
+
+**Icon** — the pair of representations a `CheckboxConfig` carries for rendering: a *filled* shape (`icon`, a single SVG path's `d` attribute, plus `viewBox`) sourced from fontawesome.com, and a *stroke* shape (`customIconData`, a set of raw SVG element strings plus `viewBox`) sourced from lucide.dev. Which representation renders is decided by the plugin-wide `settings.iconStyle` ('filled' | 'stroke'), not by the checkbox itself — a checkbox can carry both, one, or (transiently, mid-edit) neither. When the representation matching the active style is missing, rendering falls back to the other representation before giving up; see `src/icon.ts`.
