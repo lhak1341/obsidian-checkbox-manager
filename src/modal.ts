@@ -1,7 +1,8 @@
-import { App, Modal, Notice, Setting, sanitizeHTMLToDom } from 'obsidian';
+import { App, getIcon, Modal, Notice, Setting, sanitizeHTMLToDom } from 'obsidian';
 import type { CheckboxConfig, CustomIconData } from './types';
 import type CheckboxManagerPlugin from './main';
-import { parseIconMarkup, renderIcon } from './icon';
+import { iconDataFromElement, parseIconMarkup, renderIcon } from './icon';
+import { IconSuggest } from './icon-suggest';
 
 export class CheckboxConfigModal extends Modal {
 	private plugin: CheckboxManagerPlugin;
@@ -125,19 +126,41 @@ export class CheckboxConfigModal extends Modal {
 		} else {
 			new Setting(iconSection).setName('Icon (lucide/stroke)').setHeading();
 			const helper = iconSection.createDiv('checkbox-config-helper');
-			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://lucide.dev/icons" target="_blank">lucide.dev</a>, search for an icon, copy the SVG, and paste it below`));
+			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://lucide.dev/icons" target="_blank">lucide.dev</a>, search for an icon, copy the SVG, and paste it below — or pick one by name:`));
+
+			const pickerInput = iconSection.createEl('input', {
+				cls: 'checkbox-config-icon-suggest-input',
+				attr: { type: 'text', placeholder: 'Search icon by name…' },
+			});
+			new IconSuggest(this.app, pickerInput);
 
 			const svgArea = iconSection.createEl('textarea', { cls: 'checkbox-config-svg-input' });
 			svgArea.placeholder = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ...>\n  <path d="..."/>\n</svg>';
 
-			if (customIconData?.paths) {
-				const paths = customIconData.paths.map((d) => `<path d="${d}"/>`).join('\n  ');
-				svgArea.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${customIconData.viewBox}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  ${paths}\n</svg>`;
-			} else if (customIconData?.elements) {
-				svgArea.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${customIconData.viewBox}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  ${customIconData.elements.join('\n  ')}\n</svg>`;
-			}
+			const syncSvgAreaFromCustomIconData = () => {
+				if (customIconData?.paths) {
+					const paths = customIconData.paths.map((d) => `<path d="${d}"/>`).join('\n  ');
+					svgArea.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${customIconData.viewBox}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  ${paths}\n</svg>`;
+				} else if (customIconData?.elements) {
+					svgArea.value = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${customIconData.viewBox}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  ${customIconData.elements.join('\n  ')}\n</svg>`;
+				}
+			};
+			syncSvgAreaFromCustomIconData();
 
 			extractedInfo = iconSection.createDiv('checkbox-config-extracted-info');
+
+			pickerInput.addEventListener('input', () => {
+				const iconId = pickerInput.value.trim();
+				if (!iconId) return;
+				const svgEl = getIcon(iconId);
+				if (!svgEl) return;
+				customIconData = iconDataFromElement(svgEl);
+				syncSvgAreaFromCustomIconData();
+				extractedInfo.textContent = `viewBox: ${customIconData.viewBox}`;
+				svgArea.removeClass('is-invalid');
+				svgArea.addClass('is-valid');
+				updatePreview();
+			});
 
 			svgArea.oninput = () => {
 				const val = svgArea.value.trim();

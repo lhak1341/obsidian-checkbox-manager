@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { iconDataUrl, parseIconMarkup, renderIcon, type IconSource } from './icon';
+import { iconDataFromElement, iconDataUrl, parseIconMarkup, renderIcon, type IconSource } from './icon';
+
+function parseSvgElement(markup: string): SVGSVGElement {
+	const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+	return doc.querySelector('svg') as unknown as SVGSVGElement;
+}
 
 describe('parseIconMarkup', () => {
 	it('extracts path data and viewBox from a valid filled (fontawesome) SVG', () => {
@@ -51,6 +56,29 @@ describe('parseIconMarkup', () => {
 	it('rejects stroke SVGs with no drawable elements', () => {
 		const result = parseIconMarkup('<svg viewBox="0 0 24 24"><title>empty</title></svg>', 'stroke');
 		expect(result).toEqual({ ok: false, reason: 'No drawable elements' });
+	});
+});
+
+describe('iconDataFromElement', () => {
+	it('extracts drawable elements and viewBox from a registry SVGElement', () => {
+		const svg = parseSvgElement('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1 1"/><circle cx="5" cy="5" r="2"/></svg>');
+		const result = iconDataFromElement(svg);
+		expect(result.viewBox).toBe('0 0 24 24');
+		expect(result.elements).toHaveLength(2);
+		expect(result.elements?.[0]).toContain('<path');
+		expect(result.elements?.[1]).toContain('<circle');
+	});
+
+	it('defaults viewBox to 0 0 24 24 when the element has none', () => {
+		const svg = parseSvgElement('<svg xmlns="http://www.w3.org/2000/svg"><path d="M1 1"/></svg>');
+		const result = iconDataFromElement(svg);
+		expect(result.viewBox).toBe('0 0 24 24');
+	});
+
+	it('returns an empty elements array when there are no drawable children', () => {
+		const svg = parseSvgElement('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>empty</title></svg>');
+		const result = iconDataFromElement(svg);
+		expect(result.elements).toHaveLength(0);
 	});
 });
 

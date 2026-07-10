@@ -41,6 +41,13 @@ export function parseIconMarkup(svgString: string, style: IconStyle): ParseIconR
 	return { ok: true, viewBox, customIconData: { viewBox, elements: elements.map((el) => el.outerHTML) } };
 }
 
+/** Bridges an SVGElement from Obsidian's icon registry (getIcon()) into the same CustomIconData shape parseIconMarkup() produces from a pasted lucide.dev SVG. */
+export function iconDataFromElement(svg: SVGSVGElement): CustomIconData {
+	const elements = Array.from(svg.querySelectorAll(STROKE_ELEMENT_SELECTOR));
+	const viewBox = svg.getAttribute('viewBox') || STROKE_DEFAULT_VIEWBOX;
+	return { viewBox, elements: elements.map((el) => el.outerHTML) };
+}
+
 function strokeElementsMarkup(customIconData: CustomIconData): string {
 	if (customIconData.elements) return customIconData.elements.join('');
 	return (customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');

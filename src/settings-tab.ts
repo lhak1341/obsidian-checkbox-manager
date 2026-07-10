@@ -20,6 +20,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 
 	render(): void {
 		const { containerEl } = this;
+		const scrollTop = containerEl.scrollTop;
 		containerEl.empty();
 
 		const generalItems = containerEl.createDiv('setting-group').createDiv('setting-items');
@@ -205,6 +206,8 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			.addButton((button) =>
 				button.setButtonText('Import').onClick(() => this.importConfiguration())
 			);
+
+		containerEl.scrollTop = scrollTop;
 	}
 
 	private exportConfiguration() {

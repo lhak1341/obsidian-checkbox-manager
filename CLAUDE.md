@@ -17,3 +17,9 @@ When async code is needed inside a `void`-typed callback (modal `onSubmit`, DOM 
 
 ## Lint
 `npm run lint` always reports warnings in `deploy.mjs` and `esbuild.config.mjs` (intentional Node.js usage). Run `npx eslint src/` to get the meaningful signal for plugin code.
+
+## Editing
+Source files use tabs for indentation. If `Edit`'s `old_string` fails to match on whitespace, don't retype indentation by eye from `Read` output — verify exact bytes with `sed -n '<range>p' file | od -c` first.
+
+## Testing UI changes
+Live-test in the real vault: `npm run build:plugin && node scripts/deploy.mjs` (deploys to the vault at `OBSIDIAN_VAULT_DIR` or the hardcoded default in `scripts/deploy.mjs`), then `obsidian plugin:reload id=obsidian-checkbox-manager`, then use the `obsidian-cli` skill (`obsidian eval code="..."` to drive the DOM, `obsidian dev:screenshot path=...` to see it) — Obsidian must already be open.
