@@ -1,39 +1,47 @@
-import { access, copyFile, mkdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
+// Copies build output into the vault's plugin folder.
+// Override the plugins directory with OBSIDIAN_VAULT_DIR.
+import { access, copyFile, mkdir, readFile } from 'fs/promises';
+import { basename, join } from 'path';
 
 const VAULT_DIR =
 	process.env.OBSIDIAN_VAULT_DIR ??
 	'/Users/lhak/Library/Mobile Documents/iCloud~md~obsidian/Documents/lhakZettel/.obsidian/plugins';
 
-const VAULT_PLUGIN_DIR = join(VAULT_DIR, 'obsidian-checkbox-manager');
-const OLD_PLUGIN_DIR = join(VAULT_DIR, 'lhak-checkboxes');
+const PLUGIN_DIR_NAME = 'obsidian-checkbox-manager';
+// This plugin was once deployed under a different folder; settings are migrated once.
+const OLD_PLUGIN_DIR_NAME = 'lhak-checkboxes';
 
-const FILES = ['manifest.json', join('dist', 'main.js'), join('dist', 'styles.css')];
+const REQUIRED = ['manifest.json', join('dist', 'main.js')];
+const OPTIONAL = [join('dist', 'styles.css')];
 
-await mkdir(VAULT_PLUGIN_DIR, { recursive: true });
+const targets = [join(VAULT_DIR, PLUGIN_DIR_NAME)];
 
-for (const src of FILES) {
-	const dest = join(VAULT_PLUGIN_DIR, src.split('/').at(-1));
-	await copyFile(src, dest);
-	console.log(`Copied ${src} → ${dest}`);
+const exists = (path) => access(path).then(() => true, () => false);
+
+for (const src of REQUIRED) {
+	if (!(await exists(src))) {
+		throw new Error(`Missing build output: ${src} — run "bun run build:plugin" first.`);
+	}
 }
 
-// Migrate settings from old plugin if new plugin has no data yet
-const newDataPath = join(VAULT_PLUGIN_DIR, 'data.json');
-const oldDataPath = join(OLD_PLUGIN_DIR, 'data.json');
-
-const newDataExists = await access(newDataPath).then(() => true).catch(() => false);
-
-if (!newDataExists) {
-	const oldDataExists = await access(oldDataPath).then(() => true).catch(() => false);
-	if (oldDataExists) {
-		await copyFile(oldDataPath, newDataPath);
-		const data = JSON.parse(await readFile(newDataPath, 'utf8'));
-		console.log(`Migrated ${data.checkboxes?.length ?? 0} checkboxes from lhak-checkboxes.`);
+for (const target of targets) {
+	await mkdir(target, { recursive: true });
+	for (const src of [...REQUIRED, ...OPTIONAL]) {
+		if (!(await exists(src))) continue;
+		await copyFile(src, join(target, basename(src)));
 	}
-} else {
+	console.log(`Deployed to ${target}`);
+}
+
+// Carry settings over from the old folder, but only when this one has none yet.
+const newDataPath = join(VAULT_DIR, PLUGIN_DIR_NAME, 'data.json');
+const oldDataPath = join(VAULT_DIR, OLD_PLUGIN_DIR_NAME, 'data.json');
+
+if (await exists(newDataPath)) {
 	const data = JSON.parse(await readFile(newDataPath, 'utf8'));
 	console.log(`Keeping existing data.json (${data.checkboxes?.length ?? 0} checkboxes).`);
+} else if (await exists(oldDataPath)) {
+	await copyFile(oldDataPath, newDataPath);
+	const data = JSON.parse(await readFile(newDataPath, 'utf8'));
+	console.log(`Migrated ${data.checkboxes?.length ?? 0} checkboxes from ${OLD_PLUGIN_DIR_NAME}.`);
 }
-
-console.log('Deploy complete.');

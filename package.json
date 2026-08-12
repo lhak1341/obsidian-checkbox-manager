@@ -8,7 +8,9 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"build:plugin": "node esbuild.config.mjs production",
 		"deploy": "bun run build:plugin && bun run scripts/deploy.mjs",
+		"typecheck": "tsc --noEmit -skipLibCheck",
 		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
 		"test": "vitest run"
 	},
 	"author": {
