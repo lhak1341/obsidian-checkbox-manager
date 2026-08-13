@@ -3,6 +3,7 @@ import type { CheckboxConfig, CustomIconData } from './types';
 import type CheckboxManagerPlugin from './main';
 import { iconDataFromElement, parseIconMarkup, renderIcon } from './icon';
 import { IconSuggest } from './icon-suggest';
+import { resolveLucideIconId } from './lucide-icons';
 
 export class CheckboxConfigModal extends Modal {
 	private plugin: CheckboxManagerPlugin;
@@ -152,7 +153,7 @@ export class CheckboxConfigModal extends Modal {
 			pickerInput.addEventListener('input', () => {
 				const iconId = pickerInput.value.trim();
 				if (!iconId) return;
-				const svgEl = getIcon(iconId);
+				const svgEl = getIcon(resolveLucideIconId(iconId));
 				if (!svgEl) return;
 				customIconData = iconDataFromElement(svgEl);
 				syncSvgAreaFromCustomIconData();

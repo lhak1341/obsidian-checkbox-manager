@@ -4,12 +4,14 @@ import { DEFAULT_CHECKBOXES, DEFAULT_SETTINGS } from './defaults';
 import { CheckboxManagerSettingTab } from './settings-tab';
 import { InsertCheckboxModal } from './insert-checkbox-modal';
 import { generateCheckboxCSS } from './css-generator';
+import { registerLucideIcons } from './lucide-icons';
 
 export default class CheckboxManagerPlugin extends Plugin {
 	settings!: PluginSettings;
 	private styleEl!: HTMLStyleElement;
 
 	async onload() {
+		registerLucideIcons();
 		await this.loadSettings();
 
 		this.styleEl = createEl('style');

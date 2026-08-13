@@ -20,6 +20,16 @@ If generated CSS/SVG output looks right but does not render, diff it byte-for-by
 `git show HEAD:src/<file>` for identical input before guessing further — a missing `xmlns`
 is invisible to lint, build, and `getComputedStyle`.
 
+`src/lucide-icons.ts` bundles the full offline Lucide set (`src/lucide-icon-svgs.json` +
+`src/lucide-icon-tags.json`, both regenerated via `bun run sync:lucide`) so icons missing
+from Obsidian's pinned snapshot (e.g. `mosque`, `broccoli`) still resolve, and so the icon
+picker (`IconSuggest`, `src/icon-suggest.ts`) can match on search synonyms — "chem" surfaces
+flask-conical/atom/biohazard/etc via `src/icon-search.ts`'s `rankIconSuggestions()` (name
+matches first, tag matches after), same data lucide.dev's own icon search runs on. Every
+dynamic `setIcon`/`getIcon` call must go through `resolveLucideIconId()` first — Obsidian
+silently no-ops `addIcon()` entries registered under its own `lucide-` prefix, so gap-fill
+icons live under `checkbox-manager-lucide-` instead.
+
 ## Conventions
 
 - New domain concepts (e.g. "Icon") belong in `CONTEXT.md` — check and update it before

@@ -11,7 +11,8 @@
 		"typecheck": "tsc --noEmit -skipLibCheck",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
-		"test": "vitest run"
+		"test": "vitest run",
+		"sync:lucide": "node scripts/sync-lucide-icons.mjs"
 	},
 	"author": {
 		"name": "Khoa Le",
@@ -25,6 +26,7 @@
 		"eslint": "^10.6.0",
 		"eslint-plugin-obsidianmd": "^0.4.1",
 		"jsdom": "^29.1.1",
+		"lucide-static": "^1.31.0",
 		"obsidian": "latest",
 		"typescript": "5.8.3",
 		"vitest": "^4.1.10"
