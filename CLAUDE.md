@@ -30,10 +30,21 @@ dynamic `setIcon`/`getIcon` call must go through `resolveLucideIconId()` first �
 silently no-ops `addIcon()` entries registered under its own `lucide-` prefix, so gap-fill
 icons live under `checkbox-manager-lucide-` instead.
 
+`icon.ts` stays DOM-free (pure, heavily tested); DOM-touching icon code lives in
+`icon-input.ts` (the edit widget) and `icon-render.ts` (`renderIconInto()` — the only
+sanctioned way to insert an icon into the DOM; don't hand-roll `renderIcon()` +
+`sanitizeHTMLToDom()` again).
+
+Checkbox-list mutations go through `main.ts`'s `addCheckbox`/`removeCheckbox`/
+`updateCheckbox` (async, keyed by `symbol`) — never mutate `settings.checkboxes` directly
+from settings-tab.ts/modal.ts.
+
 ## Conventions
 
 - New domain concepts (e.g. "Icon") belong in `CONTEXT.md` — check and update it before
   introducing new terminology.
+- Deferred/declined architecture decisions go in `docs/adr/` (see 0001, 0002) — check
+  before re-proposing something already declined.
 - Source files use **tabs**. If `Edit`'s `old_string` fails on whitespace, verify the exact
   bytes with `sed -n '<range>p' file | od -c` rather than retyping indentation by eye.
 - Build output goes to `dist/`; `scripts/deploy.mjs` copies from there and migrates

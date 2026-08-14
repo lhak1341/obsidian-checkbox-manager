@@ -53,6 +53,11 @@ function strokeElementsMarkup(customIconData: CustomIconData): string {
 	return (customIconData.paths || []).map((d) => `<path d="${d}"/>`).join('');
 }
 
+function strokeElementLines(customIconData: CustomIconData): string[] {
+	if (customIconData.elements) return customIconData.elements;
+	return (customIconData.paths || []).map((d) => `<path d="${d}"/>`);
+}
+
 /**
  * width/height, derived from the viewBox itself so aspect ratio is always exact.
  * -webkit-mask-image needs the SVG to declare an intrinsic size or Chromium renders it
@@ -77,6 +82,7 @@ function viewBoxDimensions(viewBox: string): { width: string; height: string } {
  * since an inline <svg> in the document *can* resolve custom properties from :root.
  */
 const SVG_XMLNS = 'http://www.w3.org/2000/svg';
+const STROKE_PRESENTATION_ATTRS = 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 
 function buildSvgMarkup(checkbox: IconSource, style: IconStyle, color: string | null): string {
 	if (style === 'filled' && checkbox.icon) {
@@ -90,7 +96,7 @@ function buildSvgMarkup(checkbox: IconSource, style: IconStyle, color: string | 
 		const elements = strokeElementsMarkup(checkbox.customIconData);
 		if (elements) {
 			const { width, height } = viewBoxDimensions(checkbox.customIconData.viewBox);
-			return `<svg xmlns="${SVG_XMLNS}" width="${width}" height="${height}" viewBox="${checkbox.customIconData.viewBox}" fill="none" stroke="${color ?? 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${elements}</svg>`;
+			return `<svg xmlns="${SVG_XMLNS}" width="${width}" height="${height}" viewBox="${checkbox.customIconData.viewBox}" fill="none" stroke="${color ?? 'currentColor'}" ${STROKE_PRESENTATION_ATTRS}>${elements}</svg>`;
 		}
 	}
 
@@ -114,4 +120,24 @@ export function iconDataUrl(checkbox: IconSource, style: IconStyle): string {
 	const markup = buildSvgMarkup(checkbox, style, null);
 	if (!markup) return 'none';
 	return `url("data:image/svg+xml,${encodeURIComponent(markup)}")`;
+}
+
+/**
+ * Renders editable SVG source text for the icon-input textarea in the config modal — pretty-printed
+ * (multi-line, 2-space indent) unlike buildSvgMarkup's compact single-line output, and always painted
+ * with stroke="currentColor" since this is what the user edits, not what gets inserted into the DOM.
+ * Shares SVG_XMLNS/STROKE_PRESENTATION_ATTRS with buildSvgMarkup so the two never drift apart.
+ * Returns null when there's nothing to show yet.
+ */
+export function serializeIconSource(source: Omit<IconSource, 'color'>, style: IconStyle): string | null {
+	if (style === 'filled') {
+		if (!source.icon) return null;
+		const viewBox = source.viewBox || FILLED_DEFAULT_VIEWBOX;
+		return `<svg xmlns="${SVG_XMLNS}" viewBox="${viewBox}">\n  <path d="${source.icon}"/>\n</svg>`;
+	}
+
+	if (!source.customIconData) return null;
+	const lines = strokeElementLines(source.customIconData);
+	if (!lines.length) return null;
+	return `<svg xmlns="${SVG_XMLNS}" viewBox="${source.customIconData.viewBox}" fill="none" stroke="currentColor" ${STROKE_PRESENTATION_ATTRS}>\n  ${lines.join('\n  ')}\n</svg>`;
 }

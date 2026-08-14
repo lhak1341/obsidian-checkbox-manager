@@ -98,23 +98,23 @@ export default class CheckboxManagerPlugin extends Plugin {
 		}
 	}
 
-	addCheckbox(config: CheckboxConfig) {
+	async addCheckbox(config: CheckboxConfig) {
 		if (!this.settings.checkboxes.find((cb) => cb.symbol === config.symbol)) {
 			this.settings.checkboxes.push(config);
-			void this.saveSettings();
+			await this.saveSettings();
 		}
 	}
 
-	removeCheckbox(symbol: string) {
+	async removeCheckbox(symbol: string) {
 		this.settings.checkboxes = this.settings.checkboxes.filter((cb) => cb.symbol !== symbol);
-		void this.saveSettings();
+		await this.saveSettings();
 	}
 
-	updateCheckbox(symbol: string, config: Partial<CheckboxConfig>) {
+	async updateCheckbox(symbol: string, config: CheckboxConfig) {
 		const index = this.settings.checkboxes.findIndex((cb) => cb.symbol === symbol);
 		if (index !== -1) {
-			this.settings.checkboxes[index] = { ...this.settings.checkboxes[index], ...config };
-			void this.saveSettings();
+			this.settings.checkboxes[index] = config;
+			await this.saveSettings();
 		}
 	}
 }

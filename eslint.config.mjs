@@ -20,6 +20,16 @@ export default defineConfig([
     },
   },
   {
+    files: ["**/*.test.ts"],
+    rules: {
+      // Test files run outside Obsidian's runtime — createEl/createDiv don't exist until a test
+      // polyfills them, and raw document.createElement() builds the containers that stand in for them.
+      "obsidianmd/prefer-create-el": "off",
+      // No popout-window concept in a jsdom test sandbox — globalThis is the only global there is.
+      "obsidianmd/no-global-this": "off",
+    },
+  },
+  {
     ignores: ["dist/**", "node_modules/**"],
   },
 ]);

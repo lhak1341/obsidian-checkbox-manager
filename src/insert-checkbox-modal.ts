@@ -1,7 +1,7 @@
-import { App, Editor, FuzzySuggestModal, sanitizeHTMLToDom } from 'obsidian';
+import { App, Editor, FuzzySuggestModal } from 'obsidian';
 import type CheckboxManagerPlugin from './main';
 import type { CheckboxConfig } from './types';
-import { renderIcon } from './icon';
+import { renderIconInto } from './icon-render';
 
 const LINE_PREFIX_RE = /^(\s*)(?:[-*+]|\d+\.)?\s*(?:\[.?\])?\s*(.*)/;
 
@@ -31,8 +31,7 @@ export class InsertCheckboxModal extends FuzzySuggestModal<CheckboxConfig> {
 			'--checkbox-color': checkbox.color,
 		});
 		const iconEl = el.createSpan('insert-checkbox-icon');
-		const iconMarkup = renderIcon(checkbox, this.plugin.settings.iconStyle || 'stroke');
-		if (iconMarkup) iconEl.appendChild(sanitizeHTMLToDom(iconMarkup));
+		renderIconInto(iconEl, checkbox, this.plugin.settings.iconStyle || 'stroke');
 		el.createSpan({ text: checkbox.name, cls: 'insert-checkbox-name' });
 	}
 
