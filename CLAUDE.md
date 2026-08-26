@@ -12,28 +12,21 @@ expressed as static CSS. `obsidianmd/no-forbidden-elements` is intentionally off
 reason.
 
 `icon.ts`'s mask-image SVGs must declare `xmlns="http://www.w3.org/2000/svg"` and use
-resolvable colors only (`currentColor`, never a CSS custom property). Getting either wrong
+resolvable colors only (`currentColor`, never a CSS custom property) — getting either wrong
 renders checkboxes blank with no console error, and `getComputedStyle` still reports the
-mask-image property as if correct.
+mask-image property as if correct. If generated CSS/SVG looks right but doesn't render, diff
+it byte-for-byte against `git show HEAD:src/<file>` before guessing further.
 
-If generated CSS/SVG output looks right but does not render, diff it byte-for-byte against
-`git show HEAD:src/<file>` for identical input before guessing further — a missing `xmlns`
-is invisible to lint, build, and `getComputedStyle`.
-
-`src/lucide-icons.ts` bundles the full offline Lucide set (`src/lucide-icon-svgs.json` +
-`src/lucide-icon-tags.json`, both regenerated via `bun run sync:lucide`) so icons missing
-from Obsidian's pinned snapshot (e.g. `mosque`, `broccoli`) still resolve, and so the icon
-picker (`IconSuggest`, `src/icon-suggest.ts`) can match on search synonyms — "chem" surfaces
-flask-conical/atom/biohazard/etc via `src/icon-search.ts`'s `rankIconSuggestions()` (name
-matches first, tag matches after), same data lucide.dev's own icon search runs on. Every
-dynamic `setIcon`/`getIcon` call must go through `resolveLucideIconId()` first — Obsidian
-silently no-ops `addIcon()` entries registered under its own `lucide-` prefix, so gap-fill
-icons live under `checkbox-manager-lucide-` instead.
+`src/lucide-icons.ts` bundles the full offline Lucide set (regenerate via
+`bun run sync:lucide`) so icons missing from Obsidian's pinned snapshot still resolve, and
+backs the icon picker's synonym search. Every dynamic `setIcon`/`getIcon` call must go
+through `resolveLucideIconId()` first — Obsidian silently no-ops `addIcon()` entries
+registered under its own `lucide-` prefix, so gap-fill icons live under
+`checkbox-manager-lucide-` instead.
 
 `icon.ts` stays DOM-free (pure, heavily tested); DOM-touching icon code lives in
-`icon-input.ts` (the edit widget) and `icon-render.ts` (`renderIconInto()` — the only
-sanctioned way to insert an icon into the DOM; don't hand-roll `renderIcon()` +
-`sanitizeHTMLToDom()` again).
+`icon-input.ts` and `icon-render.ts`. Use `renderIconInto()` (in `icon-render.ts`) to insert
+an icon into the DOM — don't hand-roll `renderIcon()` + `sanitizeHTMLToDom()` again.
 
 Checkbox-list mutations go through `main.ts`'s `addCheckbox`/`removeCheckbox`/
 `updateCheckbox` (async, keyed by `symbol`) — never mutate `settings.checkboxes` directly
