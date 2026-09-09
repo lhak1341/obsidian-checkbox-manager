@@ -17,6 +17,22 @@ export default defineConfig([
       "obsidianmd/settings-tab/prefer-setting-definitions": "off",
       // Obsidian has no native confirm() replacement; custom modal is out of scope
       "no-alert": "off",
+      // getIcon()/setIcon() silently no-op on a bare Lucide name that needs gap-prefix resolution
+      // (see lucide-icons.ts) — go through getResolvedIcon()/setResolvedIcon() instead.
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "obsidian",
+          importNames: ["getIcon", "setIcon"],
+          message: "Use getResolvedIcon()/setResolvedIcon() from './lucide-icons' instead — raw getIcon()/setIcon() silently no-op on gap-filled Lucide icons.",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["**/lucide-icons.ts"],
+    rules: {
+      // The one sanctioned place raw getIcon()/setIcon() are resolved and wrapped.
+      "no-restricted-imports": "off",
     },
   },
   {
@@ -27,6 +43,8 @@ export default defineConfig([
       "obsidianmd/prefer-create-el": "off",
       // No popout-window concept in a jsdom test sandbox — globalThis is the only global there is.
       "obsidianmd/no-global-this": "off",
+      // Tests mock/assert on Obsidian's raw getIcon()/setIcon(), not production call sites.
+      "no-restricted-imports": "off",
     },
   },
   {

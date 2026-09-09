@@ -5,6 +5,7 @@ import { CheckboxManagerSettingTab } from './settings-tab';
 import { InsertCheckboxModal } from './insert-checkbox-modal';
 import { generateCheckboxCSS } from './css-generator';
 import { registerLucideIcons } from './lucide-icons';
+import { reorderCheckboxes } from './checkbox-reorder';
 
 export default class CheckboxManagerPlugin extends Plugin {
 	settings!: PluginSettings;
@@ -116,5 +117,10 @@ export default class CheckboxManagerPlugin extends Plugin {
 			this.settings.checkboxes[index] = config;
 			await this.saveSettings();
 		}
+	}
+
+	async reorderCheckbox(from: number, to: number) {
+		this.settings.checkboxes = reorderCheckboxes(this.settings.checkboxes, from, to);
+		await this.saveSettings();
 	}
 }

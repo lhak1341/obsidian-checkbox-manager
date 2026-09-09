@@ -59,6 +59,7 @@ describe('attachIconInput — filled style', () => {
 		const handle = attachIconInput(container, { app: {} as App, style: 'filled', initial: {}, onChange });
 
 		expect(handle.getValue()).toEqual({ icon: '', viewBox: '0 0 512 512' });
+		expect(handle.hasValue()).toBe(false);
 		expect(onChange).not.toHaveBeenCalled();
 	});
 
@@ -72,6 +73,7 @@ describe('attachIconInput — filled style', () => {
 		dispatchInput(textarea);
 
 		expect(handle.getValue()).toEqual({ icon: 'M1 1', viewBox: '0 0 640 640' });
+		expect(handle.hasValue()).toBe(true);
 		expect(textarea.classList.contains('is-valid')).toBe(true);
 		expect(container.querySelector('.checkbox-config-extracted-info')!.textContent).toBe('viewBox: 0 0 640 640');
 		expect(onChange).toHaveBeenCalledTimes(1);
@@ -118,6 +120,7 @@ describe('attachIconInput — stroke style', () => {
 		const handle = attachIconInput(container, { app: {} as App, style: 'stroke', initial: {}, onChange: vi.fn() });
 
 		expect(handle.getValue()).toEqual({ customIconData: null });
+		expect(handle.hasValue()).toBe(false);
 	});
 
 	it('parses a pasted SVG into customIconData', () => {
@@ -132,6 +135,7 @@ describe('attachIconInput — stroke style', () => {
 		const value = handle.getValue();
 		expect('customIconData' in value && value.customIconData?.viewBox).toBe('0 0 24 24');
 		expect('customIconData' in value && value.customIconData?.elements).toHaveLength(2);
+		expect(handle.hasValue()).toBe(true);
 		expect(textarea.classList.contains('is-valid')).toBe(true);
 		expect(onChange).toHaveBeenCalledTimes(1);
 	});

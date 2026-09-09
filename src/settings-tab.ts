@@ -23,9 +23,19 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 		const scrollTop = containerEl.scrollTop;
 		containerEl.empty();
 
-		const generalItems = containerEl.createDiv('setting-group').createDiv('setting-items');
+		this.renderGeneralSettings(containerEl.createDiv('setting-group').createDiv('setting-items'));
 
-		new Setting(generalItems)
+		new Setting(containerEl).setName('Checkbox configurations').setHeading();
+		this.renderChecklistSection(containerEl.createDiv('setting-group').createDiv('setting-items'));
+
+		new Setting(containerEl).setName('Backup & restore').setHeading();
+		this.renderBackupSection(containerEl.createDiv('setting-group').createDiv('setting-items'));
+
+		containerEl.scrollTop = scrollTop;
+	}
+
+	private renderGeneralSettings(container: HTMLElement): void {
+		new Setting(container)
 			.setName('Enable custom checkboxes')
 			.setDesc('Toggle custom checkbox styling on/off')
 			.addToggle((toggle) =>
@@ -35,7 +45,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(generalItems)
+		new Setting(container)
 			.setName('Icon style')
 			.setDesc("Filled: bold fontawesome icons. Stroke: thin lucide icons that match Obsidian's UI.")
 			.addDropdown((dropdown) => {
@@ -50,7 +60,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(generalItems)
+		new Setting(container)
 			.setName('Icon size')
 			.setDesc('Size of checkbox icons (CSS value, e.g., 90%, 16px, 1.2em)')
 			.addText((text) =>
@@ -63,7 +73,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(generalItems)
+		new Setting(container)
 			.setName('Icon position')
 			.setDesc('Position of checkbox icons (CSS background-position, e.g., center, 50% 50%)')
 			.addText((text) =>
@@ -75,11 +85,10 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+	}
 
-		new Setting(containerEl).setName('Checkbox configurations').setHeading();
-		const checkboxItems = containerEl.createDiv('setting-group').createDiv('setting-items');
-
-		new Setting(checkboxItems)
+	private renderChecklistSection(container: HTMLElement): void {
+		new Setting(container)
 			.setName('Add new checkbox')
 			.setDesc('Add a new custom checkbox type')
 			.addButton((button) =>
@@ -90,87 +99,10 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			);
 
 		this.plugin.settings.checkboxes.forEach((checkbox, index) => {
-			const item = checkboxItems.createDiv('checkbox-manager-item');
-			item.draggable = true;
-			item.dataset.index = index.toString();
-
-			item.addEventListener('dragstart', (e) => {
-				item.addClass('is-dragging');
-				e.dataTransfer!.effectAllowed = 'move';
-				e.dataTransfer!.setData('text/plain', index.toString());
-			});
-
-			item.addEventListener('dragend', () => {
-				item.removeClass('is-dragging');
-				containerEl.querySelectorAll<HTMLElement>('.checkbox-manager-item').forEach((el) => {
-					el.removeClass('is-drag-over');
-				});
-			});
-
-			item.addEventListener('dragover', (e) => {
-				e.preventDefault();
-				e.dataTransfer!.dropEffect = 'move';
-				item.addClass('is-drag-over');
-			});
-
-			item.addEventListener('dragleave', (e) => {
-				if (!item.contains(e.relatedTarget as Node)) {
-					item.removeClass('is-drag-over');
-				}
-			});
-
-			item.addEventListener('drop', (e) => {
-				e.preventDefault();
-				const from = parseInt(e.dataTransfer!.getData('text/plain'));
-				const to = parseInt(item.dataset.index!);
-				if (from !== to) {
-					const list = [...this.plugin.settings.checkboxes];
-					const [moved] = list.splice(from, 1);
-					list.splice(to, 0, moved);
-					this.plugin.settings.checkboxes = list;
-					void (async () => {
-						await this.plugin.saveSettings();
-						this.render();
-						new Notice(`Moved "${moved.name}" to position ${to + 1}`);
-					})();
-				}
-				item.removeClass('is-drag-over');
-			});
-
-			const preview = item.createDiv('checkbox-manager-preview');
-
-			const symbolEl = preview.createSpan('checkbox-manager-symbol');
-			symbolEl.textContent = `[${checkbox.symbol}]`;
-			symbolEl.setCssProps({ '--checkbox-color': checkbox.color });
-
-			const iconEl = preview.createSpan('checkbox-manager-icon');
-			renderIconInto(iconEl, checkbox, this.plugin.settings.iconStyle || 'stroke');
-
-			const nameEl = preview.createSpan('checkbox-manager-label');
-			nameEl.textContent = checkbox.name;
-
-			const buttons = item.createDiv('checkbox-manager-actions');
-
-			new ExtraButtonComponent(buttons)
-				.setIcon('pencil')
-				.setTooltip('Edit')
-				.onClick(() => this.showEditCheckboxModal(checkbox));
-
-			new ExtraButtonComponent(buttons)
-				.setIcon('trash-2')
-				.setTooltip('Delete')
-				.onClick(() => {
-					if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
-						void (async () => {
-							await this.plugin.removeCheckbox(checkbox.symbol);
-							this.render();
-							new Notice(`Deleted checkbox: ${checkbox.name}`);
-						})();
-					}
-				});
+			this.renderChecklistItem(container, checkbox, index);
 		});
 
-		new Setting(checkboxItems)
+		new Setting(container)
 			.setName('Reset to defaults')
 			.setDesc('Reset all checkbox configurations to default values')
 			.addButton((button) =>
@@ -184,11 +116,88 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 						new Notice('Checkbox configurations reset to defaults');
 					})
 			);
+	}
 
-		new Setting(containerEl).setName('Backup & restore').setHeading();
-		const backupItems = containerEl.createDiv('setting-group').createDiv('setting-items');
+	private renderChecklistItem(container: HTMLElement, checkbox: CheckboxConfig, index: number): void {
+		const item = container.createDiv('checkbox-manager-item');
+		item.draggable = true;
+		item.dataset.index = index.toString();
 
-		new Setting(backupItems)
+		item.addEventListener('dragstart', (e) => {
+			item.addClass('is-dragging');
+			e.dataTransfer!.effectAllowed = 'move';
+			e.dataTransfer!.setData('text/plain', index.toString());
+		});
+
+		item.addEventListener('dragend', () => {
+			item.removeClass('is-dragging');
+			this.containerEl.querySelectorAll<HTMLElement>('.checkbox-manager-item').forEach((el) => {
+				el.removeClass('is-drag-over');
+			});
+		});
+
+		item.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			e.dataTransfer!.dropEffect = 'move';
+			item.addClass('is-drag-over');
+		});
+
+		item.addEventListener('dragleave', (e) => {
+			if (!item.contains(e.relatedTarget as Node)) {
+				item.removeClass('is-drag-over');
+			}
+		});
+
+		item.addEventListener('drop', (e) => {
+			e.preventDefault();
+			const from = parseInt(e.dataTransfer!.getData('text/plain'));
+			const to = parseInt(item.dataset.index!);
+			if (from !== to) {
+				const movedName = this.plugin.settings.checkboxes[from].name;
+				void (async () => {
+					await this.plugin.reorderCheckbox(from, to);
+					this.render();
+					new Notice(`Moved "${movedName}" to position ${to + 1}`);
+				})();
+			}
+			item.removeClass('is-drag-over');
+		});
+
+		const preview = item.createDiv('checkbox-manager-preview');
+
+		const symbolEl = preview.createSpan('checkbox-manager-symbol');
+		symbolEl.textContent = `[${checkbox.symbol}]`;
+		symbolEl.setCssProps({ '--checkbox-color': checkbox.color });
+
+		const iconEl = preview.createSpan('checkbox-manager-icon');
+		renderIconInto(iconEl, checkbox, this.plugin.settings.iconStyle || 'stroke');
+
+		const nameEl = preview.createSpan('checkbox-manager-label');
+		nameEl.textContent = checkbox.name;
+
+		const buttons = item.createDiv('checkbox-manager-actions');
+
+		new ExtraButtonComponent(buttons)
+			.setIcon('pencil')
+			.setTooltip('Edit')
+			.onClick(() => this.showEditCheckboxModal(checkbox));
+
+		new ExtraButtonComponent(buttons)
+			.setIcon('trash-2')
+			.setTooltip('Delete')
+			.onClick(() => {
+				if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
+					void (async () => {
+						await this.plugin.removeCheckbox(checkbox.symbol);
+						this.render();
+						new Notice(`Deleted checkbox: ${checkbox.name}`);
+					})();
+				}
+			});
+	}
+
+	private renderBackupSection(container: HTMLElement): void {
+		new Setting(container)
 			.setName('Export configuration')
 			.setDesc('Download your current checkbox configuration as a backup file')
 			.addButton((button) =>
@@ -198,14 +207,12 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 					.onClick(() => this.exportConfiguration())
 			);
 
-		new Setting(backupItems)
+		new Setting(container)
 			.setName('Import configuration')
 			.setDesc('Restore checkbox configuration from a backup file')
 			.addButton((button) =>
 				button.setButtonText('Import').onClick(() => this.importConfiguration())
 			);
-
-		containerEl.scrollTop = scrollTop;
 	}
 
 	private exportConfiguration() {

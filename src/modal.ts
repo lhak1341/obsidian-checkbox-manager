@@ -3,6 +3,7 @@ import type { CheckboxConfig } from './types';
 import type CheckboxManagerPlugin from './main';
 import { attachIconInput } from './icon-input';
 import { renderIconInto } from './icon-render';
+import { buildCheckboxConfig, describeValidity } from './checkbox-config-form';
 
 export class CheckboxConfigModal extends Modal {
 	private plugin: CheckboxManagerPlugin;
@@ -106,9 +107,9 @@ export class CheckboxConfigModal extends Modal {
 
 		const updatePreview = () => {
 			const value = iconInput.getValue();
-			const hasIcon = 'icon' in value ? !!value.icon : !!(value.customIconData?.paths || value.customIconData?.elements);
+			const validity = describeValidity(symbol, name, iconInput.hasValue());
 			previewContent.empty();
-			if (symbol && name && hasIcon) {
+			if (validity.ok) {
 				const previewRow = previewContent.createDiv('checkbox-config-preview-content');
 				const symEl = previewRow.createSpan('checkbox-config-preview-symbol');
 				symEl.textContent = `[${symbol}]`;
@@ -122,12 +123,8 @@ export class CheckboxConfigModal extends Modal {
 				previewSection.addClass('is-valid');
 				saveButton.disabled = false;
 			} else {
-				const missing: string[] = [];
-				if (!symbol) missing.push('symbol');
-				if (!name) missing.push('name');
-				if (!hasIcon) missing.push('icon');
 				const placeholder = previewContent.createDiv('checkbox-config-preview-placeholder');
-				placeholder.textContent = missing.length ? `Missing: ${missing.join(', ')}` : 'Fill in the fields above';
+				placeholder.textContent = validity.missing.length ? `Missing: ${validity.missing.join(', ')}` : 'Fill in the fields above';
 				previewSection.removeClass('is-valid');
 				saveButton.disabled = true;
 			}
@@ -145,22 +142,7 @@ export class CheckboxConfigModal extends Modal {
 				new Notice('Symbol and name are required');
 				return;
 			}
-			const result: CheckboxConfig = {
-				symbol: symbol.trim(),
-				name: name.trim(),
-				color: color.trim(),
-				description: this.config?.description || '',
-				icon: this.config?.icon || '',
-				viewBox: this.config?.viewBox || '0 0 512 512',
-				customIconData: this.config?.customIconData,
-			};
-			const value = iconInput.getValue();
-			if ('icon' in value) {
-				result.icon = value.icon.trim();
-				result.viewBox = value.viewBox.trim() || '0 0 512 512';
-			} else {
-				result.customIconData = value.customIconData ?? undefined;
-			}
+			const result = buildCheckboxConfig(this.config, { symbol, name, color }, iconInput.getValue());
 			this.onSubmit(result);
 			this.close();
 		};

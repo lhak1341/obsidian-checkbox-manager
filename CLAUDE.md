@@ -19,18 +19,25 @@ it byte-for-byte against `git show HEAD:src/<file>` before guessing further.
 
 `src/lucide-icons.ts` bundles the full offline Lucide set (regenerate via
 `bun run sync:lucide`) so icons missing from Obsidian's pinned snapshot still resolve, and
-backs the icon picker's synonym search. Every dynamic `setIcon`/`getIcon` call must go
-through `resolveLucideIconId()` first — Obsidian silently no-ops `addIcon()` entries
+backs the icon picker's synonym search. Obsidian silently no-ops `addIcon()` entries
 registered under its own `lucide-` prefix, so gap-fill icons live under
-`checkbox-manager-lucide-` instead.
+`checkbox-manager-lucide-` instead — resolve via `getResolvedIcon()`/`setResolvedIcon()`
+(never raw `getIcon`/`setIcon`), which ESLint's `no-restricted-imports` rule enforces
+outside `lucide-icons.ts` and test files.
 
-`icon.ts` stays DOM-free (pure, heavily tested); DOM-touching icon code lives in
-`icon-input.ts` and `icon-render.ts`. Use `renderIconInto()` (in `icon-render.ts`) to insert
-an icon into the DOM — don't hand-roll `renderIcon()` + `sanitizeHTMLToDom()` again.
+Classes extending Obsidian's `Plugin`/`Modal`/`PluginSettingTab` (`main.ts`, `modal.ts`,
+`settings-tab.ts`) can't be unit-tested — `__mocks__/obsidian.ts` has none of those classes
+to instantiate against. Each keeps testable logic in a same-purpose Obsidian-free sibling
+module instead: `icon.ts` (DOM-touching icon code lives in `icon-input.ts`/`icon-render.ts`
+— use `renderIconInto()` to insert an icon, don't hand-roll `renderIcon()` +
+`sanitizeHTMLToDom()` again), `checkbox-reorder.ts` (behind `main.ts`'s `reorderCheckbox`),
+`checkbox-config-form.ts` (behind `modal.ts`'s save/validity logic). The class method
+itself stays a thin, untested wrapper.
 
 Checkbox-list mutations go through `main.ts`'s `addCheckbox`/`removeCheckbox`/
-`updateCheckbox` (async, keyed by `symbol`) — never mutate `settings.checkboxes` directly
-from settings-tab.ts/modal.ts.
+`updateCheckbox`/`reorderCheckbox` (async; the first three keyed by `symbol`,
+`reorderCheckbox` by array index) — never mutate `settings.checkboxes` directly from
+settings-tab.ts/modal.ts.
 
 ## Conventions
 

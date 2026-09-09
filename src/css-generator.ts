@@ -32,10 +32,10 @@ input {
 
 	const style = settings.iconStyle || 'stroke';
 	const allCheckboxes = [...regular, ...(spinner ? [spinner] : [])];
+	const urlBySymbol = new Map(allCheckboxes.map((cb) => [cb.symbol, iconDataUrl(cb, style)]));
 	const iconVars = allCheckboxes
-		.map((cb) => ({ cb, url: iconDataUrl(cb, style) }))
-		.filter(({ url }) => url !== 'none')
-		.map(({ cb, url }) => `  ${varName(cb.symbol)}: ${url};`);
+		.filter((cb) => urlBySymbol.get(cb.symbol) !== 'none')
+		.map((cb) => `  ${varName(cb.symbol)}: ${urlBySymbol.get(cb.symbol)};`);
 
 	if (iconVars.length) {
 		css += `\n:root {\n${iconVars.join('\n')}\n}\n`;
@@ -56,7 +56,7 @@ ${regular.map((cb) => isSel(cb.symbol)).join(',\n')} {
 	}
 
 	for (const cb of regular) {
-		if (iconDataUrl(cb, style) === 'none') continue;
+		if (urlBySymbol.get(cb.symbol) === 'none') continue;
 		css += `
 /* [${cb.symbol}] ${cb.name} */
 ${isSel(cb.symbol)} { color: ${cb.color}; -webkit-mask-image: var(${varName(cb.symbol)}); }
@@ -64,7 +64,7 @@ ${isSel(cb.symbol)} { color: ${cb.color}; -webkit-mask-image: var(${varName(cb.s
 	}
 
 	if (spinner) {
-		const spinUrl = iconDataUrl(spinner, style);
+		const spinUrl = urlBySymbol.get(spinner.symbol)!;
 		const maskProp = spinUrl !== 'none' ? `-webkit-mask-image: var(${varName('/')});` : '';
 		css += `
 /* [/] ${spinner.name} - Spinning */

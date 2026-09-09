@@ -1,8 +1,8 @@
-import { App, getIcon } from 'obsidian';
+import { App } from 'obsidian';
 import type { CustomIconData } from './types';
 import { iconDataFromElement, parseIconMarkup, serializeIconSource, type IconStyle } from './icon';
 import { IconSuggest } from './icon-suggest';
-import { resolveLucideIconId } from './lucide-icons';
+import { getResolvedIcon } from './lucide-icons';
 
 const FILLED_DEFAULT_VIEWBOX = '0 0 512 512';
 
@@ -17,6 +17,12 @@ export interface IconInputOptions {
 
 export interface IconInputHandle {
 	getValue(): IconInputValue;
+	hasValue(): boolean;
+}
+
+/** Whether an IconInputValue has anything to render — true for a non-empty filled path or a stroke value with drawable data. */
+function hasValue(value: IconInputValue): boolean {
+	return 'icon' in value ? !!value.icon : !!(value.customIconData?.paths || value.customIconData?.elements);
 }
 
 /**
@@ -42,7 +48,7 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 		pickerInput.addEventListener('input', () => {
 			const iconId = pickerInput.value.trim();
 			if (!iconId) return;
-			const svgEl = getIcon(resolveLucideIconId(iconId));
+			const svgEl = getResolvedIcon(iconId);
 			if (!svgEl) return;
 			const customIconData = iconDataFromElement(svgEl);
 			setValid({ customIconData }, customIconData.viewBox, true);
@@ -103,5 +109,5 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 		setValid(next, result.viewBox, false);
 	};
 
-	return { getValue: () => value };
+	return { getValue: () => value, hasValue: () => hasValue(value) };
 }

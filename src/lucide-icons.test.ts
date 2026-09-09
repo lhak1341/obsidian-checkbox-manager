@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { getIconIds, addIcon } from 'obsidian';
-import { registerLucideIcons, allLucideIconNames, getLucideIconTags, resolveLucideIconId } from './lucide-icons';
+import { getIconIds, addIcon, getIcon, setIcon } from 'obsidian';
+import { registerLucideIcons, allLucideIconNames, getLucideIconTags, resolveLucideIconId, getResolvedIcon, setResolvedIcon } from './lucide-icons';
 
 // Obsidian's createSvg() is a global helper (declared ambient in obsidian.d.ts), not a package
 // export — jsdom doesn't have it, and scaleToCustomIconViewport() needs it to build the gap-icon's
@@ -56,5 +56,38 @@ describe('getLucideIconTags', () => {
 
 	it('returns an empty array for an unknown icon', () => {
 		expect(getLucideIconTags('totally-not-a-real-icon')).toEqual([]);
+	});
+});
+
+describe('getResolvedIcon', () => {
+	beforeEach(() => {
+		vi.mocked(getIcon).mockReset();
+		vi.mocked(getIconIds).mockReturnValue(['lucide-mosque']);
+		registerLucideIcons();
+	});
+
+	it('calls getIcon() with the resolved id, not the bare name', () => {
+		getResolvedIcon('mosque');
+		expect(getIcon).toHaveBeenCalledWith('lucide-mosque');
+	});
+
+	it('returns whatever getIcon() returns', () => {
+		const el = {} as SVGSVGElement;
+		vi.mocked(getIcon).mockReturnValue(el);
+		expect(getResolvedIcon('mosque')).toBe(el);
+	});
+});
+
+describe('setResolvedIcon', () => {
+	beforeEach(() => {
+		vi.mocked(setIcon).mockReset();
+		vi.mocked(getIconIds).mockReturnValue([]);
+		registerLucideIcons();
+	});
+
+	it('calls setIcon() with the element and the resolved (gap-filled) id, not the bare name', () => {
+		const el = document.createElement('span');
+		setResolvedIcon(el, 'mosque');
+		expect(setIcon).toHaveBeenCalledWith(el, 'checkbox-manager-lucide-mosque');
 	});
 });

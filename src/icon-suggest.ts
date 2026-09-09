@@ -1,5 +1,5 @@
-import { AbstractInputSuggest, App, setIcon } from 'obsidian';
-import { allLucideIconNames, getLucideIconTags, resolveLucideIconId } from './lucide-icons';
+import { AbstractInputSuggest, App } from 'obsidian';
+import { allLucideIconNames, getLucideIconTags, setResolvedIcon } from './lucide-icons';
 import { rankIconSuggestions } from './icon-search';
 
 /** Autocomplete for icon ids registered with Obsidian (mostly Lucide), backed by allLucideIconNames() so gap-filled icons (e.g. "mosque") show up alongside natively-bundled ones. */
@@ -14,7 +14,7 @@ export class IconSuggest extends AbstractInputSuggest<string> {
 
 	renderSuggestion(iconId: string, el: HTMLElement): void {
 		el.addClass('checkbox-config-icon-suggest-item');
-		setIcon(el.createSpan({ cls: 'checkbox-config-icon-suggest-icon' }), resolveLucideIconId(iconId));
+		setResolvedIcon(el.createSpan({ cls: 'checkbox-config-icon-suggest-icon' }), iconId);
 		el.createSpan({ text: iconId });
 	}
 

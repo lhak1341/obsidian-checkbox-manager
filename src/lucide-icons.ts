@@ -1,4 +1,4 @@
-import { addIcon, getIconIds } from 'obsidian';
+import { addIcon, getIcon, getIconIds, setIcon } from 'obsidian';
 import lucideIconSvgsJson from './lucide-icon-svgs.json';
 import lucideIconTagsJson from './lucide-icon-tags.json';
 
@@ -78,4 +78,14 @@ export function resolveLucideIconId(bareName: string): string {
 	if (nativeNames.has(bareName)) return 'lucide-' + bareName;
 	if (gapNames.has(bareName)) return GAP_ICON_PREFIX + bareName;
 	return bareName;
+}
+
+/** getIcon(), but for a bare Lucide name instead of a possibly-prefixed id — the only sanctioned way to resolve one. */
+export function getResolvedIcon(bareName: string): SVGSVGElement | null {
+	return getIcon(resolveLucideIconId(bareName));
+}
+
+/** setIcon(), but for a bare Lucide name instead of a possibly-prefixed id — the only sanctioned way to resolve one. */
+export function setResolvedIcon(el: HTMLElement, bareName: string): void {
+	setIcon(el, resolveLucideIconId(bareName));
 }
