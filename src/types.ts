@@ -1,7 +1,8 @@
+export type IconStyle = 'stroke' | 'filled';
+
 export interface CustomIconData {
 	viewBox: string;
-	paths?: string[];
-	elements?: string[];
+	elements: string[];
 }
 
 export interface CheckboxConfig {
@@ -19,5 +20,5 @@ export interface PluginSettings {
 	enabled: boolean;
 	iconSize: string;
 	iconPosition: string;
-	iconStyle: 'stroke' | 'filled';
+	iconStyle: IconStyle;
 }

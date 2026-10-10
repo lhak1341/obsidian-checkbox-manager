@@ -1,45 +1,31 @@
 import { App } from 'obsidian';
-import type { CustomIconData } from './types';
-import { iconDataFromElement, parseIconMarkup, serializeIconSource, type IconStyle } from './icon';
+import { iconDataFromElement, type IconFields, type Icons } from './icon';
 import { IconSuggest } from './icon-suggest';
 import { getResolvedIcon } from './lucide-icons';
 
-const FILLED_DEFAULT_VIEWBOX = '0 0 512 512';
-
-export type IconInputValue = { icon: string; viewBox: string } | { customIconData: CustomIconData | null };
-
 export interface IconInputOptions {
 	app: App;
-	style: IconStyle;
-	initial: { icon?: string; viewBox?: string; customIconData?: CustomIconData | null };
+	icons: Icons;
+	initial: IconFields;
 	onChange: () => void;
 }
 
 export interface IconInputHandle {
-	getValue(): IconInputValue;
+	getValue(): IconFields;
 	hasValue(): boolean;
 }
 
-/** Whether an IconInputValue has anything to render — true for a non-empty filled path or a stroke value with drawable data. */
-function hasValue(value: IconInputValue): boolean {
-	return 'icon' in value ? !!value.icon : !!(value.customIconData?.paths || value.customIconData?.elements);
-}
-
 /**
- * Textarea + validation + (stroke only) name-picker for the config modal's icon section. One
- * instance backs each of the "Icon (fontawesome/filled)" and "Icon (lucide/stroke)" sections —
- * paste and picker-select are two real sources (free text vs Obsidian's own trusted icon
+ * Textarea + validation + (when the style supports it) name-picker for the config modal's icon
+ * section. Paste and picker-select are two real sources (free text vs Obsidian's own trusted icon
  * registry), so they stay two entry points funnelling into one internal apply step.
  */
 export function attachIconInput(container: HTMLElement, opts: IconInputOptions): IconInputHandle {
-	const { app, style, initial, onChange } = opts;
-	const isFilled = style === 'filled';
+	const { app, icons, initial, onChange } = opts;
 
-	let value: IconInputValue = isFilled
-		? { icon: initial.icon || '', viewBox: initial.viewBox || FILLED_DEFAULT_VIEWBOX }
-		: { customIconData: initial.customIconData ?? null };
+	let value = icons.fieldsFrom(initial);
 
-	if (!isFilled) {
+	if (icons.supportsPicker) {
 		const pickerInput = container.createEl('input', {
 			cls: 'checkbox-config-icon-suggest-input',
 			attr: { type: 'text', placeholder: 'Search icon by name…' },
@@ -56,19 +42,17 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 	}
 
 	const svgArea = container.createEl('textarea', { cls: 'checkbox-config-svg-input' });
-	svgArea.placeholder = isFilled
-		? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">\n  <path d="M256 32c14.2 0..."/>\n</svg>'
-		: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ...>\n  <path d="..."/>\n</svg>';
+	svgArea.placeholder = icons.placeholder;
 
 	const extractedInfo = container.createDiv('checkbox-config-extracted-info');
 
 	function syncTextarea() {
-		const serialized = serializeIconSource(value, style);
+		const serialized = icons.serialize(value);
 		if (serialized !== null) svgArea.value = serialized;
 	}
 	syncTextarea();
 
-	function setValid(next: IconInputValue, viewBox: string, syncText: boolean) {
+	function setValid(next: IconFields, viewBox: string, syncText: boolean) {
 		value = next;
 		if (syncText) syncTextarea();
 		extractedInfo.textContent = `viewBox: ${viewBox}`;
@@ -78,7 +62,7 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 	}
 
 	function setInvalid(reason: string) {
-		value = isFilled ? { icon: '', viewBox: FILLED_DEFAULT_VIEWBOX } : { customIconData: null };
+		value = icons.fieldsFrom({});
 		extractedInfo.textContent = reason;
 		svgArea.removeClass('is-valid');
 		svgArea.addClass('is-invalid');
@@ -86,7 +70,7 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 	}
 
 	function setEmpty() {
-		value = isFilled ? { icon: '', viewBox: FILLED_DEFAULT_VIEWBOX } : { customIconData: null };
+		value = icons.fieldsFrom({});
 		extractedInfo.textContent = '';
 		svgArea.removeClass('is-valid', 'is-invalid');
 		onChange();
@@ -98,16 +82,13 @@ export function attachIconInput(container: HTMLElement, opts: IconInputOptions):
 			setEmpty();
 			return;
 		}
-		const result = parseIconMarkup(val, style);
+		const result = icons.parse(val);
 		if (!result.ok) {
 			setInvalid(result.reason);
 			return;
 		}
-		const next: IconInputValue = isFilled
-			? { icon: result.icon ?? '', viewBox: result.viewBox }
-			: { customIconData: result.customIconData ?? null };
-		setValid(next, result.viewBox, false);
+		setValid(result.fields, result.viewBox, false);
 	};
 
-	return { getValue: () => value, hasValue: () => hasValue(value) };
+	return { getValue: () => value, hasValue: () => icons.hasIcon(value) };
 }

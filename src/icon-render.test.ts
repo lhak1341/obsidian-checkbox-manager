@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeHTMLToDom } from 'obsidian';
 import { renderIconInto } from './icon-render';
-import { renderIcon, type IconSource } from './icon';
+import { iconsFor, type IconSource } from './icon';
 
 // Wiring-level only: verifies renderIconInto threads the right markup to the right place, and
 // no-ops on empty markup. It cannot catch the real Obsidian sanitizeHTMLToDom/renderer class of
@@ -18,25 +18,25 @@ const STROKE_SOURCE: IconSource = {
 describe('renderIconInto', () => {
 	it('does nothing when there is no icon to render', () => {
 		const el = document.createElement('div');
-		renderIconInto(el, { color: 'red' }, 'filled');
+		renderIconInto(el, iconsFor('filled'), { color: 'red' });
 
 		expect(el.childNodes).toHaveLength(0);
 	});
 
-	it('threads the exact markup renderIcon() produces into sanitizeHTMLToDom, for filled', () => {
+	it('threads the exact markup render() produces into sanitizeHTMLToDom, for filled', () => {
 		const el = document.createElement('div');
-		renderIconInto(el, FILLED_SOURCE, 'filled');
+		renderIconInto(el, iconsFor('filled'), FILLED_SOURCE);
 
 		expect(el.childNodes).toHaveLength(1);
-		expect(sanitizeHTMLToDom).toHaveBeenCalledWith(renderIcon(FILLED_SOURCE, 'filled'));
+		expect(sanitizeHTMLToDom).toHaveBeenCalledWith(iconsFor('filled').render(FILLED_SOURCE));
 	});
 
-	it('threads the exact markup renderIcon() produces into sanitizeHTMLToDom, for stroke', () => {
+	it('threads the exact markup render() produces into sanitizeHTMLToDom, for stroke', () => {
 		const el = document.createElement('div');
-		renderIconInto(el, STROKE_SOURCE, 'stroke');
+		renderIconInto(el, iconsFor('stroke'), STROKE_SOURCE);
 
 		expect(el.childNodes).toHaveLength(1);
-		expect(sanitizeHTMLToDom).toHaveBeenCalledWith(renderIcon(STROKE_SOURCE, 'stroke'));
+		expect(sanitizeHTMLToDom).toHaveBeenCalledWith(iconsFor('stroke').render(STROKE_SOURCE));
 	});
 
 	it('leaves existing children in place and appends after them', () => {
@@ -45,7 +45,7 @@ describe('renderIconInto', () => {
 		marker.textContent = 'Existing';
 		el.appendChild(marker);
 
-		renderIconInto(el, FILLED_SOURCE, 'filled');
+		renderIconInto(el, iconsFor('filled'), FILLED_SOURCE);
 
 		expect(el.childNodes).toHaveLength(2);
 		expect(el.firstChild).toBe(marker);

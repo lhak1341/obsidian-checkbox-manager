@@ -1,5 +1,5 @@
 import type { PluginSettings } from './types';
-import { iconDataUrl } from './icon';
+import { iconsFor } from './icon';
 
 function isSel(symbol: string): string {
 	return `:is(input[data-task='${symbol}'], [data-task='${symbol}'] > input, [data-task='${symbol}'] > p > input):checked`;
@@ -30,9 +30,9 @@ input {
 }
 `;
 
-	const style = settings.iconStyle || 'stroke';
+	const icons = iconsFor(settings.iconStyle || 'stroke');
 	const allCheckboxes = [...regular, ...(spinner ? [spinner] : [])];
-	const urlBySymbol = new Map(allCheckboxes.map((cb) => [cb.symbol, iconDataUrl(cb, style)]));
+	const urlBySymbol = new Map(allCheckboxes.map((cb) => [cb.symbol, icons.dataUrl(cb)]));
 	const iconVars = allCheckboxes
 		.filter((cb) => urlBySymbol.get(cb.symbol) !== 'none')
 		.map((cb) => `  ${varName(cb.symbol)}: ${urlBySymbol.get(cb.symbol)};`);

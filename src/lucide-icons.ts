@@ -1,4 +1,4 @@
-import { addIcon, getIcon, getIconIds, setIcon } from 'obsidian';
+import { addIcon, getIcon, getIconIds, removeIcon, setIcon } from 'obsidian';
 import lucideIconSvgsJson from './lucide-icon-svgs.json';
 import lucideIconTagsJson from './lucide-icon-tags.json';
 
@@ -63,6 +63,13 @@ export function registerLucideIcons(): void {
 	gapNames = gaps;
 }
 
+/** Removes every gap-filled icon registerLucideIcons() added, so disabling the plugin doesn't leave `checkbox-manager-lucide-*` ids in Obsidian's icon registry. Call from onunload(). */
+export function unregisterLucideIcons(): void {
+	for (const name of gapNames) removeIcon(GAP_ICON_PREFIX + name);
+	nativeNames = new Set();
+	gapNames = new Set();
+}
+
 /** Union of natively-bundled and gap-filled Lucide icon names, bare (no prefix). */
 export function allLucideIconNames(): string[] {
 	return Array.from(new Set([...nativeNames, ...gapNames]));
@@ -74,7 +81,7 @@ export function getLucideIconTags(name: string): readonly string[] {
 }
 
 /** Resolves a bare icon name (e.g. "mosque") to whatever id getIcon()/setIcon() will actually resolve. */
-export function resolveLucideIconId(bareName: string): string {
+function resolveLucideIconId(bareName: string): string {
 	if (nativeNames.has(bareName)) return 'lucide-' + bareName;
 	if (gapNames.has(bareName)) return GAP_ICON_PREFIX + bareName;
 	return bareName;

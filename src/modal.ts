@@ -1,20 +1,21 @@
-import { App, Modal, Notice, Setting, sanitizeHTMLToDom } from 'obsidian';
+import { App, Modal, Setting, sanitizeHTMLToDom } from 'obsidian';
 import type { CheckboxConfig } from './types';
 import type CheckboxManagerPlugin from './main';
 import { attachIconInput } from './icon-input';
+import { iconsFor } from './icon';
 import { renderIconInto } from './icon-render';
-import { buildCheckboxConfig, describeValidity } from './checkbox-config-form';
+import { COLOR_OPTIONS, evaluateForm } from './checkbox-config-form';
 
 export class CheckboxConfigModal extends Modal {
 	private plugin: CheckboxManagerPlugin;
 	private config: CheckboxConfig | null;
-	private onSubmit: (result: CheckboxConfig | null) => void;
+	private onSubmit: (result: CheckboxConfig) => void;
 
 	constructor(
 		app: App,
 		plugin: CheckboxManagerPlugin,
 		config: CheckboxConfig | null,
-		onSubmit: (result: CheckboxConfig | null) => void
+		onSubmit: (result: CheckboxConfig) => void
 	) {
 		super(app);
 		this.plugin = plugin;
@@ -24,7 +25,7 @@ export class CheckboxConfigModal extends Modal {
 
 	onOpen() {
 		const { contentEl } = this;
-		const isFilled = (this.plugin.settings.iconStyle || 'stroke') === 'filled';
+		const icons = iconsFor(this.plugin.settings.iconStyle);
 
 		this.modalEl.addClass('checkbox-config-modal');
 
@@ -36,7 +37,7 @@ export class CheckboxConfigModal extends Modal {
 
 		let symbol = this.config?.symbol || '';
 		let name = this.config?.name || '';
-		let color = this.config?.color || 'var(--color-orange)';
+		let color = this.config?.color || COLOR_OPTIONS[0].value;
 
 		new Setting(form)
 			.setName('Symbol')
@@ -62,17 +63,7 @@ export class CheckboxConfigModal extends Modal {
 			.setName('Color')
 			.setDesc('Icon color')
 			.addDropdown((dropdown) => {
-				dropdown.addOption('var(--color-orange)', 'Orange');
-				dropdown.addOption('var(--color-red)', 'Red');
-				dropdown.addOption('var(--color-green)', 'Green');
-				dropdown.addOption('var(--color-blue)', 'Blue');
-				dropdown.addOption('var(--color-purple)', 'Purple');
-				dropdown.addOption('var(--color-yellow)', 'Yellow');
-				dropdown.addOption('var(--color-pink)', 'Pink');
-				dropdown.addOption('var(--color-cyan)', 'Cyan');
-				dropdown.addOption('var(--color-base-60)', 'Gray');
-				dropdown.addOption('var(--background-modifier-accent)', 'Accent');
-				dropdown.addOption('var(--color-base-100)', 'Default');
+				for (const option of COLOR_OPTIONS) dropdown.addOption(option.value, option.label);
 				dropdown.setValue(color);
 				dropdown.onChange((v) => {
 					color = v;
@@ -82,20 +73,14 @@ export class CheckboxConfigModal extends Modal {
 
 		const iconSection = form.createDiv('checkbox-config-icon-section');
 
-		if (isFilled) {
-			new Setting(iconSection).setName('Icon (fontawesome/filled)').setHeading();
-			const helper = iconSection.createDiv('checkbox-config-helper');
-			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://fontawesome.com/icons" target="_blank">fontawesome.com</a>, find an icon, click <strong>SVG</strong> → copy and paste the full SVG below`));
-		} else {
-			new Setting(iconSection).setName('Icon (lucide/stroke)').setHeading();
-			const helper = iconSection.createDiv('checkbox-config-helper');
-			helper.appendChild(sanitizeHTMLToDom(`Go to <a href="https://lucide.dev/icons" target="_blank">lucide.dev</a>, search for an icon, copy the SVG, and paste it below — or pick one by name:`));
-		}
+		new Setting(iconSection).setName(icons.heading).setHeading();
+		const helper = iconSection.createDiv('checkbox-config-helper');
+		helper.appendChild(sanitizeHTMLToDom(icons.helperHtml));
 
 		const iconInput = attachIconInput(iconSection, {
 			app: this.app,
-			style: isFilled ? 'filled' : 'stroke',
-			initial: { icon: this.config?.icon, viewBox: this.config?.viewBox, customIconData: this.config?.customIconData ?? null },
+			icons,
+			initial: this.config ?? {},
 			onChange: () => updatePreview(),
 		});
 
@@ -104,46 +89,45 @@ export class CheckboxConfigModal extends Modal {
 		const previewContent = previewSection.createDiv();
 
 		let saveButton: HTMLButtonElement;
+		let saveable: CheckboxConfig | null = null;
 
 		const updatePreview = () => {
-			const value = iconInput.getValue();
-			const validity = describeValidity(symbol, name, iconInput.hasValue());
+			const result = evaluateForm({
+				existing: this.config,
+				form: { symbol, name, color },
+				iconFields: iconInput.getValue(),
+				icons,
+				checkboxes: this.plugin.settings.checkboxes,
+			});
 			previewContent.empty();
-			if (validity.ok) {
+			if (result.ok) {
+				const { config } = result;
 				const previewRow = previewContent.createDiv('checkbox-config-preview-content');
 				const symEl = previewRow.createSpan('checkbox-config-preview-symbol');
-				symEl.textContent = `[${symbol}]`;
-				renderIconInto(
-					previewRow,
-					'icon' in value ? { icon: value.icon, viewBox: value.viewBox, color } : { customIconData: value.customIconData, color },
-					isFilled ? 'filled' : 'stroke'
-				);
+				symEl.textContent = `[${config.symbol}]`;
+				renderIconInto(previewRow, icons, { ...iconInput.getValue(), color: config.color });
 				const nameDiv = previewRow.createDiv('checkbox-config-preview-name');
-				nameDiv.textContent = name;
+				nameDiv.textContent = config.name;
 				previewSection.addClass('is-valid');
-				saveButton.disabled = false;
 			} else {
 				const placeholder = previewContent.createDiv('checkbox-config-preview-placeholder');
-				placeholder.textContent = validity.missing.length ? `Missing: ${validity.missing.join(', ')}` : 'Fill in the fields above';
+				placeholder.textContent = result.message;
 				previewSection.removeClass('is-valid');
-				saveButton.disabled = true;
 			}
+			saveable = result.ok ? result.config : null;
+			saveButton.disabled = !saveable;
 		};
 
 		const buttonContainer = form.createDiv('checkbox-config-buttons');
 
 		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel', cls: 'checkbox-config-cancel-btn' });
-		cancelButton.onclick = () => { this.onSubmit(null); this.close(); };
+		cancelButton.onclick = () => this.close();
 
 		saveButton = buttonContainer.createEl('button', { text: 'Save', cls: 'checkbox-config-save-btn' });
 		saveButton.disabled = true;
 		saveButton.onclick = () => {
-			if (!symbol || !name) {
-				new Notice('Symbol and name are required');
-				return;
-			}
-			const result = buildCheckboxConfig(this.config, { symbol, name, color }, iconInput.getValue());
-			this.onSubmit(result);
+			if (!saveable) return;
+			this.onSubmit(saveable);
 			this.close();
 		};
 

@@ -1,6 +1,8 @@
 # No symbol-collision check when editing a checkbox
 
-Status: Accepted — 2026-08-14
+Status: Superseded — 2026-10-10 by `updateCheckbox()` in `src/checkbox-list.ts`, which now refuses an edit whose symbol collides with a different checkbox (and `deserializeConfig()` refuses a backup with duplicate symbols). Original decision kept below for history.
+
+Was: Accepted — 2026-08-14
 
 `addCheckbox()` refuses to add a checkbox whose symbol already exists (main.ts).
 `updateCheckbox()` has no equivalent check: editing a checkbox and retyping its

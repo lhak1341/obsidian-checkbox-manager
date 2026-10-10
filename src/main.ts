@@ -1,11 +1,12 @@
 import { Notice, Plugin } from 'obsidian';
 import type { CheckboxConfig, PluginSettings } from './types';
-import { DEFAULT_CHECKBOXES, DEFAULT_SETTINGS } from './defaults';
+import { normalizeSettings, resetCheckboxes } from './settings';
 import { CheckboxManagerSettingTab } from './settings-tab';
 import { InsertCheckboxModal } from './insert-checkbox-modal';
 import { generateCheckboxCSS } from './css-generator';
-import { registerLucideIcons } from './lucide-icons';
-import { reorderCheckboxes } from './checkbox-reorder';
+import { registerLucideIcons, unregisterLucideIcons } from './lucide-icons';
+import * as checkboxList from './checkbox-list';
+import type { ListResult } from './checkbox-list';
 
 export default class CheckboxManagerPlugin extends Plugin {
 	settings!: PluginSettings;
@@ -44,8 +45,7 @@ export default class CheckboxManagerPlugin extends Plugin {
 			id: 'reset-to-defaults',
 			name: 'Reset checkboxes to defaults',
 			callback: async () => {
-				this.settings.checkboxes = [...DEFAULT_CHECKBOXES];
-				await this.saveSettings();
+				await this.resetCheckboxes();
 				new Notice('Reset to default checkboxes');
 			},
 		});
@@ -65,27 +65,11 @@ export default class CheckboxManagerPlugin extends Plugin {
 
 	onunload() {
 		this.styleEl?.remove();
+		unregisterLucideIcons();
 	}
 
 	async loadSettings() {
-		const loadedData = (await this.loadData()) as Partial<PluginSettings>;
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
-
-		if (this.settings.checkboxes) {
-			this.settings.checkboxes = this.settings.checkboxes.map((checkbox) => {
-				const result = { ...checkbox };
-				if (!result.viewBox) result.viewBox = '0 0 512 512';
-				if (!result.customIconData) {
-					const def = DEFAULT_CHECKBOXES.find((d) => d.symbol === result.symbol);
-					if (def?.customIconData) result.customIconData = def.customIconData;
-				}
-				return result;
-			});
-		}
-
-		if (!this.settings.iconStyle) {
-			this.settings.iconStyle = 'stroke';
-		}
+		this.settings = normalizeSettings((await this.loadData()) as Partial<PluginSettings> | null);
 	}
 
 	async saveSettings() {
@@ -99,28 +83,38 @@ export default class CheckboxManagerPlugin extends Plugin {
 		}
 	}
 
-	async addCheckbox(config: CheckboxConfig) {
-		if (!this.settings.checkboxes.find((cb) => cb.symbol === config.symbol)) {
-			this.settings.checkboxes.push(config);
+	/** Applies a list operation's result: on success, stores the new list, saves and restyles. Returns the result for the caller to report. */
+	private async applyCheckboxResult(result: ListResult): Promise<ListResult> {
+		if (result.ok) {
+			this.settings.checkboxes = result.list;
 			await this.saveSettings();
 		}
+		return result;
 	}
 
-	async removeCheckbox(symbol: string) {
-		this.settings.checkboxes = this.settings.checkboxes.filter((cb) => cb.symbol !== symbol);
+	addCheckbox(config: CheckboxConfig) {
+		return this.applyCheckboxResult(checkboxList.addCheckbox(this.settings.checkboxes, config));
+	}
+
+	removeCheckbox(symbol: string) {
+		return this.applyCheckboxResult(checkboxList.removeCheckbox(this.settings.checkboxes, symbol));
+	}
+
+	updateCheckbox(symbol: string, config: CheckboxConfig) {
+		return this.applyCheckboxResult(checkboxList.updateCheckbox(this.settings.checkboxes, symbol, config));
+	}
+
+	reorderCheckbox(from: number, to: number) {
+		return this.applyCheckboxResult(checkboxList.reorderCheckboxes(this.settings.checkboxes, from, to));
+	}
+
+	async resetCheckboxes() {
+		this.settings = resetCheckboxes(this.settings);
 		await this.saveSettings();
 	}
 
-	async updateCheckbox(symbol: string, config: CheckboxConfig) {
-		const index = this.settings.checkboxes.findIndex((cb) => cb.symbol === symbol);
-		if (index !== -1) {
-			this.settings.checkboxes[index] = config;
-			await this.saveSettings();
-		}
-	}
-
-	async reorderCheckbox(from: number, to: number) {
-		this.settings.checkboxes = reorderCheckboxes(this.settings.checkboxes, from, to);
+	async replaceSettings(next: PluginSettings) {
+		this.settings = next;
 		await this.saveSettings();
 	}
 }

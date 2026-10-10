@@ -1,8 +1,9 @@
 import { App, ExtraButtonComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type { CheckboxConfig } from './types';
+import type { ListResult } from './checkbox-list';
 import type CheckboxManagerPlugin from './main';
 import { CheckboxConfigModal } from './modal';
-import { DEFAULT_CHECKBOXES } from './defaults';
+import { iconsFor } from './icon';
 import { renderIconInto } from './icon-render';
 import { deserializeConfig, serializeConfig, suggestFilename } from './config-backup';
 
@@ -34,6 +35,13 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 		containerEl.scrollTop = scrollTop;
 	}
 
+	/** Runs a plugin list operation, re-renders the list when it succeeded, and shows its Notice (success message or refusal reason). */
+	private async applyCheckboxOp(run: () => Promise<ListResult>): Promise<void> {
+		const result = await run();
+		if (result.ok) this.render();
+		new Notice(result.ok ? result.message : result.reason);
+	}
+
 	private renderGeneralSettings(container: HTMLElement): void {
 		new Setting(container)
 			.setName('Enable custom checkboxes')
@@ -51,7 +59,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) => {
 				dropdown.addOption('stroke', 'Stroke (lucide)');
 				dropdown.addOption('filled', 'Filled (fontawesome)');
-				dropdown.setValue(this.plugin.settings.iconStyle || 'stroke');
+				dropdown.setValue(this.plugin.settings.iconStyle);
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.iconStyle = value as 'stroke' | 'filled';
 					await this.plugin.saveSettings();
@@ -110,8 +118,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 					.setButtonText('Reset')
 					.setDestructive()
 					.onClick(async () => {
-						this.plugin.settings.checkboxes = [...DEFAULT_CHECKBOXES];
-						await this.plugin.saveSettings();
+						await this.plugin.resetCheckboxes();
 						this.render();
 						new Notice('Checkbox configurations reset to defaults');
 					})
@@ -152,14 +159,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			e.preventDefault();
 			const from = parseInt(e.dataTransfer!.getData('text/plain'));
 			const to = parseInt(item.dataset.index!);
-			if (from !== to) {
-				const movedName = this.plugin.settings.checkboxes[from].name;
-				void (async () => {
-					await this.plugin.reorderCheckbox(from, to);
-					this.render();
-					new Notice(`Moved "${movedName}" to position ${to + 1}`);
-				})();
-			}
+			if (from !== to) void this.applyCheckboxOp(() => this.plugin.reorderCheckbox(from, to));
 			item.removeClass('is-drag-over');
 		});
 
@@ -170,7 +170,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 		symbolEl.setCssProps({ '--checkbox-color': checkbox.color });
 
 		const iconEl = preview.createSpan('checkbox-manager-icon');
-		renderIconInto(iconEl, checkbox, this.plugin.settings.iconStyle || 'stroke');
+		renderIconInto(iconEl, iconsFor(this.plugin.settings.iconStyle), checkbox);
 
 		const nameEl = preview.createSpan('checkbox-manager-label');
 		nameEl.textContent = checkbox.name;
@@ -187,11 +187,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 			.setTooltip('Delete')
 			.onClick(() => {
 				if (confirm(`Delete checkbox "${checkbox.name}" [${checkbox.symbol}]?`)) {
-					void (async () => {
-						await this.plugin.removeCheckbox(checkbox.symbol);
-						this.render();
-						new Notice(`Deleted checkbox: ${checkbox.name}`);
-					})();
+					void this.applyCheckboxOp(() => this.plugin.removeCheckbox(checkbox.symbol));
 				}
 			});
 	}
@@ -238,8 +234,7 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 				return;
 			}
 			if (confirm(`Import ${result.checkboxCount} checkbox configurations?\n\nThis will replace your current settings.\nExported on: ${result.timestamp || 'Unknown date'}`)) {
-				this.plugin.settings = result.settings;
-				await this.plugin.saveSettings();
+				await this.plugin.replaceSettings(result.settings);
 				this.render();
 				new Notice(`Successfully imported ${result.checkboxCount} checkbox configurations!`);
 			}
@@ -249,26 +244,14 @@ export class CheckboxManagerSettingTab extends PluginSettingTab {
 
 	private showAddCheckboxModal() {
 		new CheckboxConfigModal(this.app, this.plugin, null, (result) => {
-			if (result) {
-				void (async () => {
-					await this.plugin.addCheckbox(result);
-					this.render();
-					new Notice(`Added checkbox: [${result.symbol}] ${result.name}`);
-				})();
-			}
+			void this.applyCheckboxOp(() => this.plugin.addCheckbox(result));
 		}).open();
 	}
 
 	private showEditCheckboxModal(checkbox: CheckboxConfig) {
 		const originalSymbol = checkbox.symbol;
 		new CheckboxConfigModal(this.app, this.plugin, checkbox, (result) => {
-			if (result) {
-				void (async () => {
-					await this.plugin.updateCheckbox(originalSymbol, result);
-					this.render();
-					new Notice(`Updated checkbox: [${result.symbol}] ${result.name}`);
-				})();
-			}
+			void this.applyCheckboxOp(() => this.plugin.updateCheckbox(originalSymbol, result));
 		}).open();
 	}
 }

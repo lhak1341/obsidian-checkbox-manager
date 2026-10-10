@@ -51,7 +51,7 @@ describe('suggestFilename', () => {
 
 describe('deserializeConfig', () => {
 	it('round-trips: serialize then deserialize returns the same checkboxes', () => {
-		const original = makeSettings({ checkboxes: [makeCheckbox({ symbol: '?', name: 'Question' })] });
+		const original = makeSettings({ checkboxes: [makeCheckbox({ symbol: 'q', name: 'Question' })] });
 		const json = serializeConfig(original, EXPORTED_AT);
 		const result = deserializeConfig(json, makeSettings());
 		expect(result.ok).toBe(true);
@@ -94,5 +94,22 @@ describe('deserializeConfig', () => {
 		const backup = JSON.stringify({ settings: { checkboxes: [{ symbol: '!' }] } });
 		const result = deserializeConfig(backup, makeSettings());
 		expect(result).toEqual({ ok: false, reason: 'checkbox 1 is missing a name' });
+	});
+
+	it('normalizes an old backup: backfills customIconData and a missing viewBox', () => {
+		const old = { symbol: '!', name: 'Important', color: 'red', icon: 'M1 1', description: '' };
+		const backup = JSON.stringify({ settings: { checkboxes: [old] } });
+		const result = deserializeConfig(backup, makeSettings());
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.settings.checkboxes[0].viewBox).toBe('0 0 512 512');
+			expect(result.settings.checkboxes[0].customIconData).toBeDefined();
+		}
+	});
+
+	it('rejects a backup where two checkboxes share a symbol', () => {
+		const backup = JSON.stringify({ settings: { checkboxes: [{ symbol: 'x', name: 'One' }, { symbol: 'y', name: 'Two' }, { symbol: 'x', name: 'Three' }] } });
+		const result = deserializeConfig(backup, makeSettings());
+		expect(result).toEqual({ ok: false, reason: 'checkboxes 1 and 3 share the symbol "x"' });
 	});
 });

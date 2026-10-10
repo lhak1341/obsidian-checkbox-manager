@@ -23,32 +23,34 @@ backs the icon picker's synonym search. Obsidian silently no-ops `addIcon()` ent
 registered under its own `lucide-` prefix, so gap-fill icons live under
 `checkbox-manager-lucide-` instead — resolve via `getResolvedIcon()`/`setResolvedIcon()`
 (never raw `getIcon`/`setIcon`), which ESLint's `no-restricted-imports` rule enforces
-outside `lucide-icons.ts` and test files.
+outside `lucide-icons.ts` and test files. `onunload()` removes the gap icons again via
+`unregisterLucideIcons()`.
 
 Classes extending Obsidian's `Plugin`/`Modal`/`PluginSettingTab` (`main.ts`, `modal.ts`,
-`settings-tab.ts`) can't be unit-tested — `__mocks__/obsidian.ts` has none of those classes
-to instantiate against. Each keeps testable logic in a same-purpose Obsidian-free sibling
-module instead: `icon.ts` (DOM-touching icon code lives in `icon-input.ts`/`icon-render.ts`
-— use `renderIconInto()` to insert an icon, don't hand-roll `renderIcon()` +
-`sanitizeHTMLToDom()` again), `checkbox-reorder.ts` (behind `main.ts`'s `reorderCheckbox`),
-`checkbox-config-form.ts` (behind `modal.ts`'s save/validity logic). The class method
-itself stays a thin, untested wrapper.
+`settings-tab.ts`, `insert-checkbox-modal.ts`) can't be unit-tested — `__mocks__/obsidian.ts`
+has none of those classes to instantiate against. Each keeps its testable logic in an
+Obsidian-free sibling module (e.g. `checkbox-list.ts`, `checkbox-line.ts`); the class method
+stays a thin, untested wrapper.
+
+`icon.ts` is the one seam for filled vs stroke: get `icons` from `iconsFor(style)` and never
+branch on the style. Insert icons with `renderIconInto()`; don't hand-roll `icons.render()` +
+`sanitizeHTMLToDom()`.
 
 Checkbox-list mutations go through `main.ts`'s `addCheckbox`/`removeCheckbox`/
 `updateCheckbox`/`reorderCheckbox` (async; the first three keyed by `symbol`,
-`reorderCheckbox` by array index) — never mutate `settings.checkboxes` directly from
-settings-tab.ts/modal.ts.
+`reorderCheckbox` by array index). Each returns a `ListResult` — `{ ok, message }` or
+`{ ok: false, reason }` — and saves only when ok; show `message`/`reason` as the Notice
+(`settings-tab.ts`'s `applyCheckboxOp` does). Never mutate `settings.checkboxes` directly
+from settings-tab.ts/modal.ts.
 
 ## Conventions
 
 - New domain concepts (e.g. "Icon") belong in `CONTEXT.md` — check and update it before
   introducing new terminology.
-- Deferred/declined architecture decisions go in `docs/adr/` (see 0001, 0002) — check
+- Deferred/declined architecture decisions go in `docs/adr/` — check
   before re-proposing something already declined.
 - Source files use **tabs**. If `Edit`'s `old_string` fails on whitespace, verify the exact
   bytes with `sed -n '<range>p' file | od -c` rather than retyping indentation by eye.
-- Build output goes to `dist/`; `scripts/deploy.mjs` copies from there and migrates
-  `data.json` from the older `lhak-checkboxes` folder on first deploy.
 
 ## Live testing
 

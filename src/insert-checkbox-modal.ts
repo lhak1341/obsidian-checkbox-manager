@@ -1,9 +1,9 @@
 import { App, Editor, FuzzySuggestModal } from 'obsidian';
 import type CheckboxManagerPlugin from './main';
 import type { CheckboxConfig } from './types';
+import { iconsFor } from './icon';
 import { renderIconInto } from './icon-render';
-
-const LINE_PREFIX_RE = /^(\s*)(?:[-*+]|\d+\.)?\s*(?:\[.?\])?\s*(.*)/;
+import { setCheckbox } from './checkbox-line';
 
 export class InsertCheckboxModal extends FuzzySuggestModal<CheckboxConfig> {
 	private plugin: CheckboxManagerPlugin;
@@ -31,16 +31,14 @@ export class InsertCheckboxModal extends FuzzySuggestModal<CheckboxConfig> {
 			'--checkbox-color': checkbox.color,
 		});
 		const iconEl = el.createSpan('insert-checkbox-icon');
-		renderIconInto(iconEl, checkbox, this.plugin.settings.iconStyle || 'stroke');
+		renderIconInto(iconEl, iconsFor(this.plugin.settings.iconStyle), checkbox);
 		el.createSpan({ text: checkbox.name, cls: 'insert-checkbox-name' });
 	}
 
 	onChooseItem(checkbox: CheckboxConfig): void {
 		const cursor = this.editor.getCursor();
 		const line = this.editor.getLine(cursor.line);
-		const newLine = line.replace(LINE_PREFIX_RE, (_match, indent: string, content: string) => {
-			return `${indent}- [${checkbox.symbol}] ${content}`;
-		});
+		const newLine = setCheckbox(line, checkbox.symbol);
 		this.editor.setLine(cursor.line, newLine);
 		this.editor.setCursor(cursor.line, newLine.length);
 	}

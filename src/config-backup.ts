@@ -1,4 +1,5 @@
 import type { PluginSettings } from './types';
+import { normalizeSettings } from './settings';
 
 const CONFIG_VERSION = '2.0';
 const PLUGIN_ID = 'obsidian-checkbox-manager';
@@ -48,15 +49,19 @@ export function deserializeConfig(json: string, currentSettings: PluginSettings)
 		return { ok: false, reason: 'Invalid configuration file format' };
 	}
 
+	const firstIndexBySymbol = new Map<string, number>();
 	for (let i = 0; i < checkboxes.length; i++) {
 		const cb = checkboxes[i] as Partial<PluginSettings['checkboxes'][number]>;
 		if (!cb.symbol) return { ok: false, reason: `checkbox ${i + 1} is missing a symbol` };
 		if (!cb.name) return { ok: false, reason: `checkbox ${i + 1} is missing a name` };
+		const first = firstIndexBySymbol.get(cb.symbol);
+		if (first !== undefined) return { ok: false, reason: `checkboxes ${first + 1} and ${i + 1} share the symbol "${cb.symbol}"` };
+		firstIndexBySymbol.set(cb.symbol, i);
 	}
 
 	return {
 		ok: true,
-		settings: { ...currentSettings, ...parsed.settings },
+		settings: normalizeSettings({ ...currentSettings, ...parsed.settings }),
 		checkboxCount: checkboxes.length,
 		timestamp: parsed.timestamp,
 	};

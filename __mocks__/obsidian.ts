@@ -12,6 +12,7 @@ export class AbstractInputSuggest<T> {
 export const getIcon = vi.fn();
 export const setIcon = vi.fn();
 export const addIcon = vi.fn();
+export const removeIcon = vi.fn();
 export const getIconIds = vi.fn(() => [] as string[]);
 export const sanitizeHTMLToDom = vi.fn((html: string) => {
 	const template = document.createElement('template');
