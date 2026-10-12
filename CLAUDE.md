@@ -36,12 +36,15 @@ stays a thin, untested wrapper.
 branch on the style. Insert icons with `renderIconInto()`; don't hand-roll `icons.render()` +
 `sanitizeHTMLToDom()`.
 
-Checkbox-list mutations go through `main.ts`'s `addCheckbox`/`removeCheckbox`/
-`updateCheckbox`/`reorderCheckbox` (async; the first three keyed by `symbol`,
-`reorderCheckbox` by array index). Each returns a `ListResult` — `{ ok, message }` or
-`{ ok: false, reason }` — and saves only when ok; show `message`/`reason` as the Notice
-(`settings-tab.ts`'s `applyCheckboxOp` does). Never mutate `settings.checkboxes` directly
-from settings-tab.ts/modal.ts.
+Settings changes go through `main.ts`'s `addCheckbox`/`removeCheckbox`/`updateCheckbox`/
+`reorderCheckbox` (async; the first three keyed by `symbol`, `reorderCheckbox` by array
+index), `resetCheckboxes`, `replaceSettings` (import), `setEnabled`, `setIconSize` and
+`setIconPosition`. Each returns a `SettingsResult` — `{ ok, settings, message? }` or
+`{ ok: false, reason }` — and saves only when ok; the Notice text comes from the result
+(`plugin.notify()`; a missing `message` means show nothing; `settings-tab.ts`'s `applyOp`
+also re-renders). Never mutate `settings` directly from settings-tab.ts/modal.ts, and never
+write Notice text for these in a caller. `iconStyle` is the one setting still written
+directly.
 
 ## Conventions
 
@@ -56,3 +59,6 @@ from settings-tab.ts/modal.ts.
 
 `bun run build:plugin && bun run scripts/deploy.mjs`, then
 `obsidian plugin:reload id=obsidian-checkbox-manager`.
+
+Verify `css-generator.ts` changes by appending `<li data-task="X"><input type=checkbox checked></li>` to
+`document.body` and diffing `getComputedStyle` of the input before and after deploy; no scratch note needed.

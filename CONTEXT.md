@@ -4,4 +4,6 @@
 
 **Settings normalisation** — the one step that brings any settings object (from `loadData()`, an imported backup, or nothing at all) to the current shape: missing top-level fields come from `DEFAULT_SETTINGS`, each checkbox gets a `viewBox`, and a checkbox without `customIconData` inherits the default with the same symbol. Defined by `normalizeSettings()` in `src/settings.ts`; load and import both pass through it, so they cannot diverge.
 
-**Symbol** — the single character between the brackets in `- [x]` that identifies a checkbox type (`CheckboxConfig.symbol`). Unique within the checkbox list: `css-generator.ts` keys its rules by symbol, so a second checkbox with the same symbol silently stops the first from rendering. Enforced by `src/checkbox-list.ts` (add, edit) and `deserializeConfig()` (import).
+**Spinner** — the checkbox whose symbol is `/`. Rendered like any other checkbox, plus a continuous rotation (`css-generator.ts`'s `SPINNER_SYMBOL`). Not configurable per checkbox: any checkbox given the symbol `/` spins, and a spinner without a usable icon renders nothing.
+
+**Symbol** — the single character between the brackets in `- [x]` that identifies a checkbox type (`CheckboxConfig.symbol`). Unique within the checkbox list: `css-generator.ts` keys its rules by symbol, so a second checkbox with the same symbol silently stops the first from rendering. Detected by one function, `findDuplicateSymbol()` in `src/checkbox-list.ts`, used by add, edit, the config form and `deserializeConfig()` (import); load does not enforce it.

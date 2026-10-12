@@ -1,6 +1,6 @@
 import { Notice, Plugin } from 'obsidian';
 import type { CheckboxConfig, PluginSettings } from './types';
-import { normalizeSettings, resetCheckboxes } from './settings';
+import { importSettings, normalizeSettings, resetCheckboxes, setEnabled, setIconPosition, setIconSize, type SettingsResult } from './settings';
 import { CheckboxManagerSettingTab } from './settings-tab';
 import { InsertCheckboxModal } from './insert-checkbox-modal';
 import { generateCheckboxCSS } from './css-generator';
@@ -25,10 +25,8 @@ export default class CheckboxManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'toggle-custom-checkboxes',
 			name: 'Toggle custom checkboxes',
-			callback: () => {
-				this.settings.enabled = !this.settings.enabled;
-				void this.saveSettings();
-				new Notice(this.settings.enabled ? 'Custom checkboxes enabled' : 'Custom checkboxes disabled');
+			callback: async () => {
+				this.notify(await this.setEnabled(!this.settings.enabled));
 			},
 		});
 
@@ -45,8 +43,7 @@ export default class CheckboxManagerPlugin extends Plugin {
 			id: 'reset-to-defaults',
 			name: 'Reset checkboxes to defaults',
 			callback: async () => {
-				await this.resetCheckboxes();
-				new Notice('Reset to default checkboxes');
+				this.notify(await this.resetCheckboxes());
 			},
 		});
 
@@ -83,38 +80,58 @@ export default class CheckboxManagerPlugin extends Plugin {
 		}
 	}
 
-	/** Applies a list operation's result: on success, stores the new list, saves and restyles. Returns the result for the caller to report. */
-	private async applyCheckboxResult(result: ListResult): Promise<ListResult> {
+	/** Shows a result's Notice: its message on success (nothing when absent), or the refusal reason. */
+	notify(result: SettingsResult): void {
+		if (!result.ok) new Notice(result.reason);
+		else if (result.message) new Notice(result.message);
+	}
+
+	/** Applies an operation's result: on success, stores the new settings, saves and restyles. Returns the result for the caller to report. */
+	private async apply(result: SettingsResult): Promise<SettingsResult> {
 		if (result.ok) {
-			this.settings.checkboxes = result.list;
+			this.settings = result.settings;
 			await this.saveSettings();
 		}
 		return result;
 	}
 
+	private applyList(result: ListResult): Promise<SettingsResult> {
+		return this.apply(result.ok ? { ok: true, settings: { ...this.settings, checkboxes: result.list }, message: result.message } : result);
+	}
+
 	addCheckbox(config: CheckboxConfig) {
-		return this.applyCheckboxResult(checkboxList.addCheckbox(this.settings.checkboxes, config));
+		return this.applyList(checkboxList.addCheckbox(this.settings.checkboxes, config));
 	}
 
 	removeCheckbox(symbol: string) {
-		return this.applyCheckboxResult(checkboxList.removeCheckbox(this.settings.checkboxes, symbol));
+		return this.applyList(checkboxList.removeCheckbox(this.settings.checkboxes, symbol));
 	}
 
 	updateCheckbox(symbol: string, config: CheckboxConfig) {
-		return this.applyCheckboxResult(checkboxList.updateCheckbox(this.settings.checkboxes, symbol, config));
+		return this.applyList(checkboxList.updateCheckbox(this.settings.checkboxes, symbol, config));
 	}
 
 	reorderCheckbox(from: number, to: number) {
-		return this.applyCheckboxResult(checkboxList.reorderCheckboxes(this.settings.checkboxes, from, to));
+		return this.applyList(checkboxList.reorderCheckboxes(this.settings.checkboxes, from, to));
 	}
 
-	async resetCheckboxes() {
-		this.settings = resetCheckboxes(this.settings);
-		await this.saveSettings();
+	resetCheckboxes() {
+		return this.apply(resetCheckboxes(this.settings));
 	}
 
-	async replaceSettings(next: PluginSettings) {
-		this.settings = next;
-		await this.saveSettings();
+	replaceSettings(imported: PluginSettings, checkboxCount: number) {
+		return this.apply(importSettings(imported, checkboxCount));
+	}
+
+	setEnabled(enabled: boolean) {
+		return this.apply(setEnabled(this.settings, enabled));
+	}
+
+	setIconSize(iconSize: string) {
+		return this.apply(setIconSize(this.settings, iconSize));
+	}
+
+	setIconPosition(iconPosition: string) {
+		return this.apply(setIconPosition(this.settings, iconPosition));
 	}
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateCheckboxCSS } from './css-generator';
+import { generateCheckboxCSS, SPINNER_SYMBOL } from './css-generator';
 import type { CheckboxConfig, PluginSettings } from './types';
 
 function makeCheckbox(overrides: Partial<CheckboxConfig> = {}): CheckboxConfig {
@@ -37,14 +37,12 @@ describe('generateCheckboxCSS', () => {
 		expect(css).toContain("input[data-task='!']");
 	});
 
-	it('skips the per-checkbox mask-image rule for a checkbox with no icon data', () => {
-		// The symbol still appears once in the shared reset-properties selector block —
-		// only the second pass, which pairs a symbol with a mask-image var, is skipped.
+	it('emits nothing at all for a checkbox with no icon data', () => {
 		const css = generateCheckboxCSS(
 			makeSettings({ checkboxes: [makeCheckbox({ symbol: '?', icon: '', customIconData: undefined })] })
 		);
 		expect(css).not.toContain(`--cb-icon-${'?'.codePointAt(0)}`);
-		expect(css).not.toMatch(/input\[data-task='\?'\][^\n]*mask-image/);
+		expect(css).not.toContain("data-task='?'");
 	});
 
 	it('injects spinner keyframes only when a "/" checkbox is configured', () => {
@@ -53,6 +51,37 @@ describe('generateCheckboxCSS', () => {
 
 		const withoutSpinner = generateCheckboxCSS(makeSettings({ checkboxes: [makeCheckbox({ symbol: '!' })] }));
 		expect(withoutSpinner).not.toContain('@keyframes spin');
+	});
+
+	describe('spinner', () => {
+		const css = generateCheckboxCSS(makeSettings({ checkboxes: [makeCheckbox({ symbol: '!' }), makeCheckbox({ symbol: SPINNER_SYMBOL, name: 'Spin' })] }));
+		const rules = css.split('\n/* ').slice(1);
+		const sharedRule = rules.find((r) => r.startsWith('Shared'))!;
+		const ruleFor = (symbol: string) => rules.find((r) => r.startsWith(`[${symbol}]`))!;
+
+		it('shares the reset declarations with every other checkbox', () => {
+			expect(sharedRule).toContain(`input[data-task='${SPINNER_SYMBOL}']`);
+			expect(sharedRule).toContain(`input[data-task='!']`);
+			expect(css.match(/pointer-events: none;/g)).toHaveLength(1);
+		});
+
+		it('is the only rule that animates', () => {
+			expect(ruleFor(SPINNER_SYMBOL)).toContain('animation: spin 2s linear infinite;');
+			expect(ruleFor('!')).not.toContain('animation');
+			expect(css.match(/animation:/g)).toHaveLength(1);
+		});
+
+		it('declares the keyframes exactly once', () => {
+			expect(css.match(/@keyframes spin/g)).toHaveLength(1);
+		});
+
+		it('emits no rule and no keyframes when it has no icon', () => {
+			const bare = generateCheckboxCSS(
+				makeSettings({ checkboxes: [makeCheckbox({ symbol: '!' }), makeCheckbox({ symbol: SPINNER_SYMBOL, icon: '', customIconData: undefined })] })
+			);
+			expect(bare).not.toContain("data-task='/'");
+			expect(bare).not.toContain('@keyframes spin');
+		});
 	});
 
 	it('reflects iconSize and iconPosition settings in the mask properties', () => {

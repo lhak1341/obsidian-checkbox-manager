@@ -14,6 +14,17 @@ export function symbolClashMessage(symbol: string, clash: CheckboxConfig): strin
 	return `Symbol "${symbol}" is already used by "${clash.name}"`;
 }
 
+/** Indices of the first two entries sharing a symbol, or undefined when every symbol is unique. The one detection used by add, edit, the form check (via findSymbolClash) and import. */
+export function findDuplicateSymbol(list: readonly { symbol: string }[]): [first: number, second: number] | undefined {
+	const firstIndexBySymbol = new Map<string, number>();
+	for (let i = 0; i < list.length; i++) {
+		const first = firstIndexBySymbol.get(list[i].symbol);
+		if (first !== undefined) return [first, i];
+		firstIndexBySymbol.set(list[i].symbol, i);
+	}
+	return undefined;
+}
+
 /** Appends `config`, refusing a symbol another checkbox already uses (css-generator keys its rules by symbol). */
 export function addCheckbox(list: CheckboxConfig[], config: CheckboxConfig): ListResult {
 	const clash = findSymbolClash(list, config.symbol);

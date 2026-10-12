@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCheckbox, findSymbolClash, removeCheckbox, reorderCheckboxes, symbolClashMessage, updateCheckbox, type ListResult } from './checkbox-list';
+import { addCheckbox, findDuplicateSymbol, findSymbolClash, removeCheckbox, reorderCheckboxes, symbolClashMessage, updateCheckbox, type ListResult } from './checkbox-list';
 import type { CheckboxConfig } from './types';
 
 function makeCheckbox(symbol: string, overrides: Partial<CheckboxConfig> = {}): CheckboxConfig {
@@ -12,6 +12,17 @@ function symbolsOf(result: ListResult): string[] {
 	if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`);
 	return result.list.map((cb) => cb.symbol);
 }
+
+describe('findDuplicateSymbol', () => {
+	it('returns undefined when every symbol is unique', () => {
+		expect(findDuplicateSymbol(LIST)).toBeUndefined();
+	});
+
+	it('returns the indices of the first repeated symbol and its first occurrence', () => {
+		const list = ['a', 'b', 'a', 'b'].map((s) => makeCheckbox(s));
+		expect(findDuplicateSymbol(list)).toEqual([0, 2]);
+	});
+});
 
 describe('findSymbolClash', () => {
 	it('finds the checkbox already using the symbol', () => {

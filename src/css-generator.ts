@@ -5,15 +5,15 @@ function isSel(symbol: string): string {
 	return `:is(input[data-task='${symbol}'], [data-task='${symbol}'] > input, [data-task='${symbol}'] > p > input):checked`;
 }
 
+/** The checkbox with this symbol also rotates continuously (see CONTEXT.md's Spinner). */
+export const SPINNER_SYMBOL = '/';
+
 function varName(symbol: string): string {
 	return `--cb-icon-${symbol.codePointAt(0)}`;
 }
 
 export function generateCheckboxCSS(settings: PluginSettings): string {
 	if (!settings.enabled) return '';
-
-	const spinner = settings.checkboxes.find((cb) => cb.symbol === '/');
-	const regular = settings.checkboxes.filter((cb) => cb.symbol !== '/');
 
 	let css = `
 /* Checkbox Manager Plugin Styles */
@@ -30,21 +30,17 @@ input {
 }
 `;
 
-	const icons = iconsFor(settings.iconStyle || 'stroke');
-	const allCheckboxes = [...regular, ...(spinner ? [spinner] : [])];
-	const urlBySymbol = new Map(allCheckboxes.map((cb) => [cb.symbol, icons.dataUrl(cb)]));
-	const iconVars = allCheckboxes
-		.filter((cb) => urlBySymbol.get(cb.symbol) !== 'none')
-		.map((cb) => `  ${varName(cb.symbol)}: ${urlBySymbol.get(cb.symbol)};`);
+	const icons = iconsFor(settings.iconStyle);
+	const urlBySymbol = new Map(settings.checkboxes.map((cb) => [cb.symbol, icons.dataUrl(cb)]));
+	// A checkbox with nothing drawable emits no rule, so it keeps Obsidian's own look.
+	const drawable = settings.checkboxes.filter((cb) => urlBySymbol.get(cb.symbol) !== 'none');
+	if (!drawable.length) return css;
 
-	if (iconVars.length) {
-		css += `\n:root {\n${iconVars.join('\n')}\n}\n`;
-	}
+	css += `\n:root {\n${drawable.map((cb) => `  ${varName(cb.symbol)}: ${urlBySymbol.get(cb.symbol)};`).join('\n')}\n}\n`;
 
-	if (regular.length) {
-		css += `
+	css += `
 /* Shared checkbox properties */
-${regular.map((cb) => isSel(cb.symbol)).join(',\n')} {
+${drawable.map((cb) => isSel(cb.symbol)).join(',\n')} {
 	--checkbox-marker-color: transparent;
 	border: none;
 	border-radius: 0;
@@ -53,34 +49,17 @@ ${regular.map((cb) => isSel(cb.symbol)).join(',\n')} {
 	pointer-events: none;
 }
 `;
-	}
 
-	for (const cb of regular) {
-		if (urlBySymbol.get(cb.symbol) === 'none') continue;
+	for (const cb of drawable) {
+		const animation = cb.symbol === SPINNER_SYMBOL ? ' animation: spin 2s linear infinite;' : '';
 		css += `
 /* [${cb.symbol}] ${cb.name} */
-${isSel(cb.symbol)} { color: ${cb.color}; -webkit-mask-image: var(${varName(cb.symbol)}); }
+${isSel(cb.symbol)} { color: ${cb.color}; -webkit-mask-image: var(${varName(cb.symbol)});${animation} }
 `;
 	}
 
-	if (spinner) {
-		const spinUrl = urlBySymbol.get(spinner.symbol)!;
-		const maskProp = spinUrl !== 'none' ? `-webkit-mask-image: var(${varName('/')});` : '';
-		css += `
-/* [/] ${spinner.name} - Spinning */
-${isSel('/')} {
-	--checkbox-marker-color: transparent;
-	border: none;
-	border-radius: 0;
-	background-image: none;
-	background-color: currentColor;
-	color: ${spinner.color};
-	${maskProp}
-	pointer-events: none;
-	animation: spin 2s linear infinite;
-}
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-`;
+	if (drawable.some((cb) => cb.symbol === SPINNER_SYMBOL)) {
+		css += '\n@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }\n';
 	}
 
 	return css;

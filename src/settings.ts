@@ -34,7 +34,31 @@ export function normalizeSettings(raw: Partial<PluginSettings> | null | undefine
 	return { ...merged, checkboxes, iconStyle: merged.iconStyle || 'stroke' };
 }
 
-/** Returns `settings` with its checkboxes replaced by deep copies of the defaults; every other setting is kept. */
-export function resetCheckboxes(settings: PluginSettings): PluginSettings {
-	return { ...settings, checkboxes: structuredClone(DEFAULT_CHECKBOXES) };
+/** Outcome of a whole-settings change: the new settings plus an optional Notice text (absent means show nothing), or why it was refused. Operations never mutate their input. */
+export type SettingsResult =
+	| { ok: true; settings: PluginSettings; message?: string }
+	| { ok: false; reason: string };
+
+/** Replaces the checkboxes with deep copies of the defaults; every other setting is kept. */
+export function resetCheckboxes(settings: PluginSettings): SettingsResult {
+	return { ok: true, settings: { ...settings, checkboxes: structuredClone(DEFAULT_CHECKBOXES) }, message: 'Checkbox configurations reset to defaults' };
+}
+
+/** Takes already-parsed and confirmed backup settings (see deserializeConfig) as the new settings. */
+export function importSettings(imported: PluginSettings, checkboxCount: number): SettingsResult {
+	return { ok: true, settings: imported, message: `Successfully imported ${checkboxCount} checkbox configurations!` };
+}
+
+export function setEnabled(settings: PluginSettings, enabled: boolean): SettingsResult {
+	return { ok: true, settings: { ...settings, enabled }, message: enabled ? 'Custom checkboxes enabled' : 'Custom checkboxes disabled' };
+}
+
+/** Empty input falls back to the default. Silent: the field saves on every keystroke. */
+export function setIconSize(settings: PluginSettings, iconSize: string): SettingsResult {
+	return { ok: true, settings: { ...settings, iconSize: iconSize || DEFAULT_SETTINGS.iconSize } };
+}
+
+/** Empty input falls back to the default. Silent: the field saves on every keystroke. */
+export function setIconPosition(settings: PluginSettings, iconPosition: string): SettingsResult {
+	return { ok: true, settings: { ...settings, iconPosition: iconPosition || DEFAULT_SETTINGS.iconPosition } };
 }
